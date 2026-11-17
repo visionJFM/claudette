@@ -7,6 +7,15 @@ Each published version of claudette, newest first. The numbers follow
 - the second when a feature, a verb or a dot-command is added;
 - the third for fixes and wording.
 
+## [1.2.0] - 2026-11-17
+
+- A reinstall replaces the files in place instead of moving the folder, so a program working
+  in the folder (a session's hook, a terminal, an editor) no longer blocks it. What it
+  replaces, the old history and edits included, goes to the backup folder, and its plan gives
+  the exact undo command. A run stopped by a file held open completes when run again.
+- The idle timer leaves the session's folder while it waits, so it no longer keeps a project
+  folder from being renamed or deleted for up to an hour.
+
 ## [1.1.0] - 2026-11-17
 
 - Updates of an install are screened before they land: nothing flagged, they land as before;

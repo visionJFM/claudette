@@ -111,7 +111,7 @@ pull_repos() {
             echo "!!! claudette: could not update claudette itself (rc=$rc) — see the output above."
             echo "!!! This machine keeps running the version it has. To repair it, reinstall:"
             echo "!!! paste the prompt of the Install section of $ROOT/README.md into Claude Code."
-            echo "!!! The reinstall keeps your answers and logs, and keeps the old folder as a backup."
+            echo "!!! The reinstall keeps your answers and logs, and backs up what it replaces."
             edited="$(git -C "$repo" status --porcelain --untracked-files=no 2>/dev/null)"
             if [ -n "$edited" ]; then
                 echo "!!! Edited files the reinstall replaces (the backup keeps them, as a patch too):"

@@ -329,6 +329,13 @@ def arm(inp):
         return 0
     log({"session_id": sid, "event": "arm", "token": token})
 
+    # The wait lasts up to an hour: leave the session's folder, which this process inherits
+    # as its working folder, since on Windows no folder can be renamed or deleted while a
+    # process works in it (a project the user tidies up, claudette's own folder).
+    try:
+        os.chdir(os.path.expanduser("~"))
+    except OSError:
+        pass
     fire_s = _env_s("CLAUDETTE_IDLE_TIMER_FIRE_S", FIRE_S)
     fallback_s = _env_s("CLAUDETTE_IDLE_TIMER_FALLBACK_S", GATE_FALLBACK_S)
     poll_s = _env_s("CLAUDETTE_IDLE_TIMER_POLL_S", POLL_S)

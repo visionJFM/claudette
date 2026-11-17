@@ -122,20 +122,21 @@ home folder is not supported.
 
    Report to the user what you checked, what you found, and what you could not check.
 4. **Wait for the user's go.** Without it, delete the temporary audit folder and stop there.
-5. **Move the audited copy into place** with the script it ships, which works the same
-   whether claudette is already installed or not. It prints its plan and changes nothing:
+5. **Install the audited copy** with the script it ships, which works the same whether
+   claudette is already installed or not. It prints its plan and changes nothing:
    ```bash
    cd "$HOME" && bash claudette-audit/scripts/run.sh move_into_place.py
    ```
    `run.sh` runs it with the Python 3.9 or newer that `bash` finds, `python3` or `python`, and
    says how to fix it when there is none. Show the plan to the user, and on their yes run the
    same command with `--apply`. Cases to handle:
-   - An existing install: its answers and logs move into the new copy, and the old folder
-     goes whole to a backup folder in the home folder. When the plan names edited files,
-     offer to re-apply them from the patch it saves.
+   - An existing install is replaced in place: its answers and logs stay where they are, and
+     what it replaces goes to a backup folder in the home folder, its old history and edits
+     included. When the plan names edited files, offer to re-apply them from the patch it
+     saves there. The plan also gives the exact undo command.
    - A plan that says STOP: add `--force` only on the user's yes to what it names.
-   - A move refused because a file is in use: nothing changed. Ask the user to close what
-     the message names, then run it again.
+   - A run that stops halfway because a file is held open: ask the user to close what the
+     message names, then run the same command again, which completes it.
 6. **Run the update flow.** If the `/claudette` skill is listed in this session, invoke
    `/claudette update`. Otherwise read `SKILL.md` and follow its `update` section. Present
    each decision to the user, and let them answer every consent, unless they tell you to take

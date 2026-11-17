@@ -88,9 +88,9 @@ None of this is tracked by git, or sent anywhere except what the Network table l
 - Build output, in `generated/`.
 - A `.backup` beside each configuration file it rewrites.
 - One line in a repo's `.git/info/exclude`, when you set a per-project override there.
-- On a reinstall over an existing claudette folder, that whole folder, moved to
-  `~/claudette-backup-<date>-<time>` once its answers and logs are carried into the new one.
-  Delete it when the new install works.
+- On a reinstall over an existing claudette folder, a backup in
+  `~/claudette-backup-<date>-<time>`: the folder's old git history, its edits, and the files
+  the reinstall replaced or took out. Delete it when the new install works.
 
 The folder of usage readings grows without limit. Deleting it loses only history.
 
