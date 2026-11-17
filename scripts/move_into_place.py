@@ -294,6 +294,10 @@ def describe(plan):
         if old["dev_notes"]:
             desc += ", with development notes (CLAUDETTE_DEV.md)"
         out.append("  existing    : %s" % desc)
+        if old["claudette"]:
+            out.append("    its status line, and the hooks running sessions loaded, call the "
+                       "scripts by path: this copy's scripts run as soon as it is in place, "
+                       "before the update's questions")
         out.append("    moves whole to the backup: %s" % plan["backup"])
         out.append("    carried into the new install: %s"
                    % (", ".join(old["carry"]) or "nothing"))

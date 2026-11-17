@@ -2423,6 +2423,20 @@ if args.doctor:
     print("\nConfig sync status: add -s for the settings/CLAUDE.md diff.")
     sys.exit(0 if all(r[1] != "warn" for r in rows) else 1)
 
+
+def _update_held():
+    """The hold update_screen.py recorded, while the install still sits at the commit it
+    screened from; None otherwise, or when it cannot be read (the plan must not fail)."""
+    try:
+        import update_screen
+        hold = update_screen.current_hold()
+    except Exception:
+        return None
+    if not hold:
+        return None
+    return {"to": hold.get("to"), "findings": hold.get("findings") or []}
+
+
 if args.update_plan:
     # The /claudette update fast path: one small JSON that says whether an
     # update needs any conversation at all. Read-only: answers nothing, writes
@@ -2474,6 +2488,9 @@ if args.update_plan:
         # PATH-lookup fallback is in force; doctor_warns then says why.
         "python": python_resolve.norm(prefs.param("python", "")) or None,
         "registry_changed": {"0": False, "1": True}.get(_reg),
+        # An update the screen held on an install (update_screen.py): the commit it
+        # stopped at and what it found. Not a failure: pull_failed stays null.
+        "update_held": _update_held(),
         # claudette's version before the pull (pull.sh's snapshot) and now; the
         # report names a change and points to CHANGELOG.md.
         "version": {"before": os.environ.get("CLAUDETTE_VERSION_BEFORE") or None,

@@ -15,9 +15,18 @@ you can judge it before installing. Everything here can be checked in `scripts/`
   `~/.claude/claudette-turn-style.md`. Switching the feature off or uninstalling leaves it in
   place.
 - A fresh clone runs no hook and changes no setting: `hooks/hooks.json` is not part of the
-  repo, and only `/claudette update` writes it, after your yes.
+  repo, and only `/claudette update` writes it, after your yes. Over an existing install, the
+  status line and the hooks running sessions already loaded call claudette's scripts by path,
+  so a reinstall's scripts run at once, as an update's do.
 - The install's own git clone gets a push address that refuses every push: an install only
   receives updates.
+- An update of an install is screened before it lands, by the screen of the version already
+  installed: the difference is checked for changes to the update path itself, to what a
+  feature already switched on applies, and for code that newly reaches the network,
+  credentials or other processes, runs code it builds, or deletes trees. Nothing flagged: the
+  update lands. A finding: nothing changes until an agent has read the flagged changes, and
+  you are asked when it is not sure. The screen catches the shapes it lists; it is not an
+  audit.
 - The usage chart's update (an optional feature) runs one background Claude Code session,
   removes it when it is done, and moves that session's transcript from `~/.claude/projects`
   to `logs/chart_runner_last.jsonl`, so that it does not list among your sessions in

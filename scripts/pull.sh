@@ -74,13 +74,26 @@ pull_repos() {
            && [ ! -f "$ROOT/docs/CLAUDETTE_DEV.md" ] && [ ! -f "$ROOT/CLAUDETTE_DEV.md" ]; then
             ff="--ff-only"
         fi
-        echo "=== git pull $ff $repo ==="
-        # color off explicitly: the log must stay greppable, and git would drop
-        # color anyway once its stdout is the tee pipe — being explicit keeps
-        # the logged and unlogged runs identical.
-        out="$(git -c color.ui=false -C "$repo" pull $ff 2>&1)"
-        rc=$?
+        if [ -n "$ff" ]; then
+            # An install fetches, screens what arrived with the INSTALLED screen, and
+            # fast-forwards to that exact commit only when nothing is flagged. Exit 5 is
+            # a hold: nothing changed on disk, and the update plan names the findings.
+            echo "=== git fetch, screen, $ff $repo ==="
+            out="$("$PYTHON" "$HERE/update_screen.py" pull "$repo" 2>&1)"
+            rc=$?
+        else
+            echo "=== git pull $repo ==="
+            # color off explicitly: the log must stay greppable, and git would drop
+            # color anyway once its stdout is the tee pipe — being explicit keeps
+            # the logged and unlogged runs identical.
+            out="$(git -c color.ui=false -C "$repo" pull 2>&1)"
+            rc=$?
+        fi
         printf '%s\n' "$out"
+        if [ "$rc" -eq 5 ]; then
+            echo "=== claudette: update held for an audit, nothing changed on disk (see update_held in the plan) ==="
+            continue
+        fi
         if [ "$rc" -eq 0 ]; then
             # This pull changed what the staleness cache memorizes: evict, so
             # ⚠auth/↓N clear on the next render.

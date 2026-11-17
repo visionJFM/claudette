@@ -115,8 +115,10 @@ home folder is not supported.
      feature can write.
    - `scripts/`: network access, files written outside the claudette folder, processes started
      or ended, text added to the conversation.
-   - That installing it runs nothing yet: `hooks/hooks.json` is absent until the update flow
-     writes it.
+   - That installing it runs nothing yet on a machine without claudette: `hooks/hooks.json` is
+     absent until the update flow writes it. Where claudette is already installed, its status
+     line and the hooks running sessions loaded call the scripts by their path, so the new
+     copy's scripts run as soon as it is in place, as an update's would.
 
    Report to the user what you checked, what you found, and what you could not check.
 4. **Wait for the user's go.** Without it, delete the temporary audit folder and stop there.
