@@ -16,6 +16,12 @@ you can judge it before installing. Everything here can be checked in `scripts/`
   place.
 - A fresh clone runs no hook and changes no setting: `hooks/hooks.json` is not part of the
   repo, and only `/claudette update` writes it, after your yes.
+- The install's own git clone gets a push address that refuses every push: an install only
+  receives updates.
+- The usage chart's update (an optional feature) runs one background Claude Code session,
+  removes it when it is done, and moves that session's transcript from `~/.claude/projects`
+  to `logs/chart_runner_last.jsonl`, so that it does not list among your sessions in
+  `/resume`. No other transcript is touched.
 - Hooks are Python scripts of this repo that Claude Code runs on its own events (a prompt
   submitted, a tool about to run, a turn ending). Some of them add text to the conversation
   that the model reads: the reply layout, a pacing notice, the idle report. Some may deny or
@@ -66,6 +72,7 @@ None of this is tracked by git, or sent anywhere except what the Network table l
   - per-session status lines;
   - the decisions of the idle report;
   - a log of each update;
+  - the transcript of the usage chart's last background session;
   - the command of a session it opens in a new Windows Terminal tab, when that command holds
     quotes, read once by that tab and deleted after a day.
 - This machine's answers, in `prefs.local.json`.

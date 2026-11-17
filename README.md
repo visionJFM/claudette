@@ -93,6 +93,10 @@ Claudette was designed with security in mind. Nothing runs before the user's yes
 it writes can be undone, and `SECURITY.md` lists what it touches. We still recommend that an
 agent inspect any add-on to Claude Code before it is activated, this one included.
 
+The install is the trial: the install script's `--undo` puts back what was there before, and
+`/claudette uninstall` restores `settings.json` as it was. Running claudette under another
+home folder is not supported.
+
 1. **Check the prerequisites.** You need `git` and Python 3.9 or newer that `bash` can
    find (Git Bash on Windows). Report anything missing and stop. Cases to handle:
    - Python is installed but `bash` does not find it. On Windows, the python.org
@@ -119,10 +123,11 @@ agent inspect any add-on to Claude Code before it is activated, this one include
 5. **Move the audited copy into place** with the script it ships, which works the same
    whether claudette is already installed or not. It prints its plan and changes nothing:
    ```bash
-   cd "$HOME" && python3 claudette-audit/scripts/move_into_place.py
+   cd "$HOME" && bash claudette-audit/scripts/run.sh move_into_place.py
    ```
-   Show the plan to the user, and on their yes run the same command with `--apply`. Cases to
-   handle:
+   `run.sh` runs it with the Python 3.9 or newer that `bash` finds, `python3` or `python`, and
+   says how to fix it when there is none. Show the plan to the user, and on their yes run the
+   same command with `--apply`. Cases to handle:
    - An existing install: its answers and logs move into the new copy, and the old folder
      goes whole to a backup folder in the home folder. When the plan names edited files,
      offer to re-apply them from the patch it saves.

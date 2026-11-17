@@ -16,8 +16,14 @@ Without --apply it changes nothing and prints its plan. With --apply, in one run
      answers; logs/, with the undo records), except what the update rebuilds
      (hooks/hooks.json, generated/) and Python caches;
   4. the old folder's edited files are saved as local-edits.patch in the backup, to
-     re-apply on request; files git neither tracks nor ignores stay in the backup.
+     re-apply on request; files git neither tracks nor ignores stay in the backup;
+  5. the install's clone gets a push address that refuses every push: an install only
+     receives updates, and its fetch address, which updates read, stays as it was.
 Then run the update flow: it rebuilds hooks/hooks.json and the settings.
+
+A development clone (one holding docs/CLAUDETTE_DEV.md, which the published repo never
+does) keeps its push address: moving a fresh clone of the development repo in with this
+script sets up a development machine and keeps its answers and logs.
 
 It stops before changing anything, unless --force, when the old folder holds commits its
 remote lacks (work found nowhere else), has a git history it cannot read, or is not
@@ -46,6 +52,7 @@ PATCH = "local-edits.patch"
 REBUILT = ("hooks/hooks.json", "generated")
 CACHES = ("__pycache__", ".pytest_cache")
 RETRIES, RETRY_S = 5, 0.5
+NO_PUSH = "no-push://a-claudette-install-only-receives-updates"
 
 
 class Refused(Exception):
@@ -129,12 +136,17 @@ def _lines(text, sep="\n"):
     return [l for l in text.split(sep) if l.strip()]
 
 
+def is_dev_clone(folder):
+    """Holds the developer notes, which the published repo never ships; an older clone
+    holds them at its root rather than in docs/."""
+    return any(os.path.isfile(os.path.join(folder, *p))
+               for p in (("docs", "CLAUDETTE_DEV.md"), ("CLAUDETTE_DEV.md",)))
+
+
 def inspect_old(target, src):
     """What the existing folder holds, read only."""
     info = {"claudette": os.path.isfile(os.path.join(target, "features_def.json")),
-            # an older install holds them at its root, not in docs/
-            "dev_notes": any(os.path.isfile(os.path.join(target, *p))
-                             for p in (("docs", "CLAUDETTE_DEV.md"), ("CLAUDETTE_DEV.md",))),
+            "dev_notes": is_dev_clone(target),
             "git": None, "remote": None, "head": None, "local_commits": None,
             "edited": [], "patch": "", "untracked": None}
     if os.path.exists(os.path.join(target, ".git")):
@@ -222,6 +234,7 @@ def make_plan(src, target, backup_parent, now=None):
     plan["src_head"] = head.strip() if rc == 0 else "?"
     rc, url = git(src, "remote", "get-url", "origin")
     plan["src_remote"] = url.strip() if rc == 0 else None
+    plan["src_dev"] = is_dev_clone(src)
     if not plan["src_remote"]:
         plan["notes"].append("this copy has no remote: /claudette update will have nothing "
                              "to pull from")
@@ -260,6 +273,10 @@ def describe(plan):
     out.append("claudette: install this copy as %s" % plan["target"])
     out.append("  copy        : %s (commit %s, from %s)"
                % (plan["src"], plan["src_head"], plan["src_remote"] or "no remote"))
+    if plan["src_remote"]:
+        out.append("  push        : %s" % (
+            "kept: this copy is a development clone (CLAUDETTE_DEV.md)" if plan["src_dev"]
+            else "disabled: an install only receives updates; fetch and pull are unchanged"))
     if plan["src_edited"]:
         out.append("    edited since its commit (kept as they are): %s"
                    % ", ".join(plan["src_edited"]))
@@ -310,6 +327,7 @@ def apply(plan, force=False, log=print):
         except OSError as e:
             raise Refused("could not move %s to %s: %s" % (src, target, e))
         log("Moved %s to %s." % (src, target))
+        _seal(plan, log)
         return
     backup = plan["backup"]
     old_in_backup = os.path.join(backup, OLD)
@@ -339,6 +357,7 @@ def apply(plan, force=False, log=print):
             raise Failed("could not move the copy in (%s), nor the old folder back (%s): "
                          "the old folder is %s, the copy %s" % (e, e2, old_in_backup, src))
         raise Refused("could not move the copy in, the old folder is back in place: %s" % e)
+    _seal(plan, log)
     problems = []
     for rel in plan["old"]["carry"]:
         a = os.path.join(old_in_backup, *rel.split("/"))
@@ -357,11 +376,23 @@ def apply(plan, force=False, log=print):
             % ", ".join(record["displaced"]))
     if plan["old"]["patch"]:
         log("Edits of the old folder: %s" % os.path.join(backup, PATCH))
-    log("Undo: python3 \"%s\" --undo \"%s\""
-        % (os.path.join(target, "scripts", "move_into_place.py"), backup))
+    log("Undo: bash \"%s\" move_into_place.py --undo \"%s\""
+        % (os.path.join(target, "scripts", "run.sh"), backup))
     if problems:
         raise Failed("installed, but these stayed in the backup (move them by hand from "
                      "%s): %s" % (old_in_backup, "; ".join(problems)))
+
+
+def _seal(plan, log):
+    """Point the install's push address at nowhere: a commit made in an install can never
+    reach the published repo, even for someone with write access to it. Fetch and pull
+    read the fetch address, which stays. A development clone keeps its push address."""
+    if plan["src_dev"] or not plan["src_remote"]:
+        return
+    rc, out = git(plan["target"], "config", "remote.origin.pushurl", NO_PUSH)
+    if rc != 0:
+        log("note: pushing from the install is not disabled (git config failed: %s)"
+            % out.strip())
 
 
 def _write_record(backup, record):
