@@ -1,0 +1,85 @@
+# Security
+
+Claudette changes how Claude Code behaves on your machine. This page says what it touches, so
+you can judge it before installing. Everything here can be checked in `scripts/`.
+
+## What it changes
+
+- Nothing is applied before you answer. `/claudette update` describes each feature (what,
+  benefit, cost, alternative) and applies only the ones you accept.
+- Accepted features are written into `~/.claude/settings.json`, `hooks/hooks.json` and one
+  generated instruction file imported by `~/.claude/CLAUDE.md`. Switching a feature off
+  removes what it wrote. `/claudette uninstall` removes all of it; your answers are kept so a
+  reinstall does not ask again.
+- One file is yours to keep: the reply layout feature gives you your own copy of its rules,
+  `~/.claude/claudette-turn-style.md`. Switching the feature off or uninstalling leaves it in
+  place.
+- A fresh clone runs no hook and changes no setting: `hooks/hooks.json` is not part of the
+  repo, and only `/claudette update` writes it, after your yes.
+- Hooks are Python scripts of this repo that Claude Code runs on its own events (a prompt
+  submitted, a tool about to run, a turn ending). Some of them add text to the conversation
+  that the model reads: the reply layout, a pacing notice, the idle report. Some may deny or
+  pause a tool call (usage pacing, the push guard). Each belongs to a feature you can turn off.
+- The dot-commands open or close windows only when you ask.
+  - `.new`, and an action such as `.sess !r` or `.proj !new` (an argument starting with `!`),
+    open new Claude Code windows.
+  - `.close` (or `/claudette:close`) ends the current session with its window.
+- Features that touch permission settings carry no recommendation and are never accepted in
+  bulk.
+
+## Network
+
+Claudette has no telemetry and no server of its own. It installs no package. The network is
+reached in these cases:
+
+| What | Where | When |
+|---|---|---|
+| Model-scoped usage limits | `api.anthropic.com` (the usage endpoint Claude Code's own `/usage` screen reads), with the access token Claude Code already stored on this machine. The token is read, never written, refreshed or sent elsewhere | The status line needs them; at most once a minute. Stop it with an empty file `logs/claude_limits_off` |
+| Git | The remotes of your own repos (`fetch`, `pull`, `ls-remote`), with your own git credentials | `/claudette update`, the behind-your-remote check, the optional auto-fetch feature |
+| Usage chart (optional feature) | A private page on your own `claude.ai` account, published by a Claude session on this machine. It carries this machine's usage percentages and its host name | Only when the chart feature is on |
+| The chart page itself | Its own data files on `claude.ai`, and fonts from `fonts.googleapis.com` and `fonts.gstatic.com`, loaded by your browser | Only when you open the usage chart page |
+
+Speech and tones are produced locally by the operating system's own voice and audio.
+
+## What it reads
+
+Everything below stays on this machine, except what the Network table lists.
+
+- Claude Code's settings.
+- Its account file, for the account's email shown on the status line.
+- Its stored access token (see Network). On macOS the first read asks through a Keychain
+  prompt, announced beforehand.
+- The transcripts of your sessions, to count turns and read the prompt cache's age.
+- Claude Code's prompt history (`~/.claude/history.jsonl`) and the session transcripts, for
+  the dot-commands. This is what lets them list every folder you ran Claude in, find a past
+  session, and open a new session in any of those folders.
+- The list of running processes, for `.proc` and to find the window a session runs in: ids,
+  names, start times and command lines, as Task Manager shows them. Never another process's
+  environment, which holds its secrets.
+
+## What it stores
+
+None of this is tracked by git, or sent anywhere except what the Network table lists.
+
+- `logs/` in this folder, which git ignores and `docs/CLAUDETTE_LOGS.md` describes file by file:
+  - usage readings with percentages, token counts, session id and the account's email;
+  - per-session status lines;
+  - the decisions of the idle report;
+  - a log of each update;
+  - the command of a session it opens in a new Windows Terminal tab, when that command holds
+    quotes, read once by that tab and deleted after a day.
+- This machine's answers, in `prefs.local.json`.
+- Build output, in `generated/`.
+- A `.backup` beside each configuration file it rewrites.
+- One line in a repo's `.git/info/exclude`, when you set a per-project override there.
+- On a reinstall over an existing claudette folder, that whole folder, moved to
+  `~/claudette-backup-<date>-<time>` once its answers and logs are carried into the new one.
+  Delete it when the new install works.
+
+The folder of usage readings grows without limit. Deleting it loses only history.
+
+## Reporting a vulnerability
+
+Use GitHub's private reporting on this repository: **Security** tab, **Report a
+vulnerability**. Please do not open a public issue for something exploitable. There is no
+bounty; reports are read by one person, on a best-effort basis.

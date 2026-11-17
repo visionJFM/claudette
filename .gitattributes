@@ -1,0 +1,4 @@
+# Shell scripts must stay LF: Git Bash rejects CRLF (\r: command not found),
+# and run.sh is on the permission-grant path — a CRLF checkout would break
+# every claudette invocation on that machine.
+*.sh text eol=lf

@@ -1,0 +1,42 @@
+# Ignores owned by the claudette folder. Kept here rather than in the root .gitignore so they
+# travel unchanged when claudette is split into its own repo. Paths are relative to this file,
+# and a nested .gitignore overrides the root's `!claudette/**` re-include for what it names.
+
+# Machine-local, never synced (this machine's copy is the only copy — see CLAUDETTE_LOGS.md).
+logs/
+# This machine's feature opt-outs and parameters (features_def.json holds the defaults).
+prefs.local.json
+# Generated from features_def.json by features_apply.py, filtered by this machine's opt-outs —
+# untracked precisely so an opt-out can REMOVE a hook instead of every script checking prefs.
+hooks/hooks.json
+# Apply-time build output (precomputed tone wavs + input-hash manifest, contract §9) —
+# per-machine because it derives from prefs; NOT logs/, because logs are flushable and
+# a hook needs these to exist.
+generated/
+
+# Build/tool droppings
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+node_modules/
+
+# Credentials — narrow, exact patterns only. Anything fuzzier ("*secret*") risks silently
+# dropping a legitimate doc from a push, which is its own failure. Real secrets belong in
+# logs/ or local/; these lines are the backstop for when someone forgets.
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+credentials.json
+secrets.json
+
+# OS / editor droppings
+.DS_Store
+Thumbs.db
+*.swp
+*~

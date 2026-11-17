@@ -1,0 +1,35 @@
+<title>Usage Chart (as seen by claudette)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="chart.css">
+<div class="wrap">
+  <header>
+    <div class="titlerow">
+      <h1 id="h1">Usage chart</h1>
+      <button class="themebtn" id="theme" type="button"></button>
+    </div>
+    <div class="tabs" id="tabs" role="tablist"></div>
+  </header>
+  <div class="card">
+    <div class="card-head"><span class="card-title" id="cardtitle"></span></div>
+    <div class="plot-shell" id="shell"><svg id="chart" role="img"></svg><div class="tip" id="tip"></div></div>
+  </div>
+  <div class="stats" id="stats"></div>
+  <details open>
+    <summary id="tblsum"></summary>
+    <div class="tablewrap"><table id="tbl"><thead><tr></tr></thead><tbody></tbody></table></div>
+  </details>
+  <details>
+    <summary id="srcsum"></summary>
+    <div class="tablewrap"><table id="srctbl"><thead><tr></tr></thead><tbody></tbody></table></div>
+  </details>
+  <section class="about">
+    <p class="lede" id="lede"></p>
+    <p class="note" id="note"></p>
+    <p class="prov" id="prov">Loading readings…</p>
+  </section>
+</div>
+<script id="chart-index" type="application/json">__INDEX__</script>
+<script src="view.js"></script>
+<script src="page.js"></script>

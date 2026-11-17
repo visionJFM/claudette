@@ -1,0 +1,822 @@
+{
+  "//": [
+    "Claudette feature registry — the single source of truth for every piece of config",
+    "claudette owns. `features_apply.py` assembles the active settings.json, the plugin's",
+    "hooks/hooks.json and the generated rules leaf claudette-instructions.generated.md",
+    "(imported by CLAUDE.md) FROM this file, filtered by",
+    "prefs.local.json, so nothing reaches a machine that the user has not switched on.",
+    "",
+    "NOTHING IS ON UNTIL IT IS ANSWERED FOR. An absent feature key in prefs.local.json",
+    "(`features` section) means OFF, not",
+    "default-on: `/claudette update` lists every unanswered feature and only what the",
+    "user confirms gets applied. `default` is that recommendation, never an implicit",
+    "activation: true/false recommend, null means NO recommendation — the feature must",
+    "be answered explicitly and --accept-defaults refuses to answer it (used for",
+    "anything with security implications).",
+    "",
+    "Feature id naming (frozen contract):",
+    "the prefix names WHERE the feature lands — `claude_md_*` a CLAUDE.md line, `claude_*`",
+    "a native Claude Code setting, `audible_*` makes sound, unprefixed = claudette's own",
+    "machinery. The value never goes in the key. Params are `<feature_id>_<tunable>`,",
+    "flat within the prefs `params` section. `renamed_from` carries a machine's stored",
+    "answer across a rename.",
+    "",
+    "Per feature: `group` (display only), `zone` (which kill switch covers it —",
+    "must name a key of the top-level `zones` map; suspension is a separate axis",
+    "from the answer and never edits it), `name` (short label for compact listings),",
+    "`default` (recommendation: true/false/null), `substrate` (a path that must exist",
+    "for the feature to be OFFERABLE — a machine without it is never asked, never",
+    "warned, and an explicit =on is refused naming the missing substrate; I4),",
+    "the four decision fields shown to the",
+    "user — `what` (what it does), `benefit` (what you gain), `cost` (the side effects,",
+    "not dollars), `alternative` (your next best option without it) — `requires` (ids",
+    "that must also be on), `renamed_from`, `params` (this feature's tunables and their",
+    "defaults), and the payloads: `settings` (merged into ~/.claude/settings.json),",
+    "`hooks` (settings.json hooks, or the plugin's generated hooks/hooks.json),",
+    "`permissions` (appended to permissions.allow), `claude_md` (lines of the managed",
+    "block, in file order), `user_copy` ({path, source}: a file in ~/.claude created",
+    "from a claudette file the first time the feature is on, the user's from then on —",
+    "scripts/user_copy.py). `hooks_restart: false` says the feature's hooks only matter to",
+    "processes started later (no restart message, not in the core install pack).",
+    "",
+    "Placeholders expanded at apply time: {S} scripts dir in $HOME form, {R} claudette",
+    "root in ~ form, {P:name} a parameter (machine override, else the default here). One",
+    "registry therefore serves any layout and any machine.",
+    "",
+    "`ask_params` lists global params prompted at update while still at their default.",
+    "",
+    "Feature ORDER here is the order CLAUDE.md lines are emitted in. Display order in the",
+    "numbered lists comes from `groups` instead, so the two never fight."
+  ],
+  "version": 3,
+  "zones": {
+    "claude_md": "generated rules leaf imported by CLAUDE.md — suspension empties the leaf; live pickup",
+    "settings": "settings.json keys — suspension restores captured values; live pickup",
+    "hooks": "hooks.json entries — suspension regenerates without them; needs a restart",
+    "audio": "hook sounds and speech — suspension deletes tones and gates the audio hooks; live",
+    "machinery": "claudette's own scripted behaviors with no config artifact"
+  },
+  "params": {
+    "owner": "username",
+    "python": "",
+    "audio_device": "",
+    "audio_lead_ms": 500,
+    "audible_speak_voice": 1,
+    "audible_speak_rate": 180,
+    "audible_speak_volume": 50
+  },
+  "ask_params": [
+    "owner"
+  ],
+  "groups": {
+    "claudette": "Claudette features",
+    "audio": "Hook audio",
+    "claude_md": "CLAUDE.md instructions",
+    "claude_settings": "Claude Code settings claudette keeps in sync"
+  },
+  "features": {
+    "claude_md_concise_reporting": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "Concise reporting",
+      "default": true,
+      "what": "The CLAUDE.md line telling every session to report extremely concisely, sacrificing grammar for concision — but never reference: an identifier is always reported with what it refers to and what it means for you.",
+      "benefit": "Less to read per turn; answers surface instead of prose. The reference floor stops concision from collapsing into unreadable shorthand like a bare commit SHA.",
+      "cost": "One context line (~40 tokens); terse replies can drop nuance you would have wanted spelled out.",
+      "alternative": "Ask for brevity per session, and repeat yourself.",
+      "claude_md": [
+        "- When reporting information to me, be extremely concise and sacrifice grammar for the sake of concision. Do not sacrifice reference: with any identifier (SHA, id, path, error code, number), say what it refers to and what it means for me."
+      ]
+    },
+    "claude_md_greet_word": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "1-word greet reply",
+      "default": true,
+      "what": "The rule that a bare greeting (hi/hello) gets a 1-word reply.",
+      "benefit": "A greeting becomes a cheap no-op turn that refreshes the status line without triggering work or a wall of text.",
+      "cost": "One context line (~25 tokens); a greeting that also contained a real request could be under-answered.",
+      "alternative": "None — without the rule a greeting earns a paragraph.",
+      "claude_md": [
+        "- If I only greet (hi/hello), reply only 1 word (will update status line)."
+      ]
+    },
+    "claude_md_question_pauses_action": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "Question halts changes",
+      "default": true,
+      "what": "The rule that a question turn is answered and NOTHING is modified: it also closes any open mandate from earlier turns; fixes spotted while answering are proposed, not applied.",
+      "benefit": "You can ask \"why?\" mid-work without the session interpreting it as \"go ahead\" — no surprise edits while you are still deciding.",
+      "cost": "Context lines (~90 tokens); intended work pauses until you say go, one extra turn per resume.",
+      "alternative": "Phrase every question with an explicit \"don't change anything yet\".",
+      "claude_md": [
+        "- When I ask a question (\"should we X?\", \"why not Y?\", \"what happened?\", \"Q:\"), answer it, recommend, and stop - no modification of any kind first. A question turn CLOSES any earlier open mandate (\"fix X\", \"improve Y\" from prior turns does not authorize changes now). Gaps or fixes discovered while answering are proposed in the answer and applied only after an explicit go."
+      ]
+    },
+    "claude_md_answers_after_tools": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "Answers in last message",
+      "default": true,
+      "what": "The rule that answers/findings go in the turn's LAST message, after all tool calls.",
+      "benefit": "Nothing you need ends up in mid-turn text the interface may hide.",
+      "cost": "One context line (~35 tokens).",
+      "alternative": "Scroll back through the turn's intermediate output and hope it was shown.",
+      "claude_md": [
+        "- Answers/findings go in the LAST message of your turn (after all tool calls), because text written between tool calls may be hidden by interface."
+      ]
+    },
+    "claude_md_claudette_pointer": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "Claudette pointer",
+      "default": true,
+      "renamed_from": "claudette_pointer",
+      "what": "The CLAUDE.md lines telling every session that claudette exists and that its small index routes claudette-shaped tasks and symptoms.",
+      "benefit": "Sessions can discover the features they are running under — including when nobody names claudette: an unexplained status line segment, sound, spoken message or denied tool, or a task like capturing an idea, all route through the index; without it, ambient behavior is invisible until violated.",
+      "cost": "A few lines of every session's context, forever (~90 tokens).",
+      "alternative": "Rely on skill autodiscovery — works for slash commands, not for ambient rules or symptoms.",
+      "claude_md": [
+        "- Claudette manages this machine's Claude Code config: features, hooks, status line, audio/speech cues, usage tracking & limits, tool pacing, skill sync, improvement ideas, dot-commands (hook-intercepted .[keyword], like .proj).",
+        "  `{R}/docs/CLAUDETTE.md` is a SMALL index — read it, then only the file it routes to, whenever:",
+        "  - something lacks another explanation: a status line segment, a tone or spoken message, a denied/paused tool, an injected prompt; or",
+        "  - the task touches Claude config, capturing an improvement idea, or extending claudette."
+      ]
+    },
+    "claude_md_progressive_disclosure": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "CLAUDE.md hygiene rule",
+      "default": true,
+      "renamed_from": "md_progressive_disclosure",
+      "what": "The hygiene rule: a CLAUDE.md line earns its place only if every session needs it; details move behind a trigger + pointer to a detail file.",
+      "benefit": "Keeps the file that loads into every single session from growing without limit.",
+      "cost": "One context line (~55 tokens); sessions will push back when you add marginal lines — that is the feature working.",
+      "alternative": "Curate CLAUDE.md by hand, by taste.",
+      "claude_md": [
+        "- Any CLAUDE.md (incl. this one): progressive disclosure — a line earns its place only if EVERY session needs it, either to act or to detect that more applies (trigger + pointer to detail file); everything else moves to the detail file."
+      ]
+    },
+    "claude_md_skill_naming": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "Skill naming rule",
+      "default": true,
+      "renamed_from": "skill_naming",
+      "what": "The rule that a session authoring a new skill — including one asked for in other words (a reusable prompt, command or workflow) — places and names it per CLAUDETTE_SKILLS.md, owner prefix mandatory.",
+      "benefit": "Personal skills stay recognisable; an imported skill never joins your push by accident.",
+      "cost": "One context line (~45 tokens) that only matters when authoring skills.",
+      "alternative": "None — nothing else fires at authoring time.",
+      "claude_md": [
+        "- Authoring a skill (not importing one) — even when nobody says \"skill\": any reusable prompt/command/workflow being created is one. Placement and naming per `{R}/docs/CLAUDETTE_SKILLS.md`; owner prefix mandatory."
+      ]
+    },
+    "claude_md_git_upstreams": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "Stale-repo check",
+      "default": true,
+      "renamed_from": "git_upstreams",
+      "what": "The rule to check whether a repo is behind its remote (cached, fetchless ls-remote) BEFORE editing it.",
+      "benefit": "No more \"edited a stale checkout, now merge it\" afternoons.",
+      "cost": "Context lines (~70 tokens) plus a script run before repo edits (cheap, cached).",
+      "alternative": "`git fetch && git status` by hand every time, or accept the occasional merge.",
+      "claude_md": [
+        "- Git repo edits: before modifying a repo, run this command to check if behind without fetching:",
+        "    `bash \"{S}/run.sh\" git_upstreams.py <repo_root>`",
+        "  if `verified_behind`>0 or `moved_unknown`, warn me and wait for my go."
+      ]
+    },
+    "claude_md_fanout_estimate": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "Fan-out cost estimate",
+      "default": true,
+      "renamed_from": "fanout_estimate",
+      "what": "The rule requiring a cost estimate before a subagent fan-out above ~2% of the 5h rate-limit window.",
+      "benefit": "No surprise burning of a rate-limit window in one turn.",
+      "cost": "One context line (~20 tokens); adds friction to legitimate big fan-outs.",
+      "alternative": "pretool_throttle catches runaway spend mid-flight — but after some of it is already spent.",
+      "claude_md": [
+        "- Before fan-outs costing >2% of the 5h window, state the estimate first."
+      ]
+    },
+    "claude_md_push_leak_scan": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "Push leak scan",
+      "default": true,
+      "what": "A CLAUDE.md rule that, before any `git push`, runs `push-diff.sh` for that repo — which greps every outgoing blob for credential shapes and for this machine's own hostname and username — and then has Claude read the lines the push adds for anything no fixed pattern can match.",
+      "benefit": "Covers every repo you push from. The script catches the mechanical half, including this machine's hostname and OS username, built at scan time so the names are never written down anywhere. Claude's read of the added lines catches the rest — personal data, a customer name, a stray `.env` — and the rule now names that read as reading lines. Partial coverage stops the push instead of passing as clean.",
+      "cost": "~90 tokens of context in every session, plus one script run and a read of the added lines before each push. No enforcement: a push made without following the rule is simply unscanned, and nothing says so afterwards.",
+      "alternative": "Scan by hand on the pushes you happen to think of it: `push-diff.sh <repo_root>` plus your own read of the outgoing commits. Or put a `pre-push` hook in each repo you care about — that one is enforced rather than remembered, and it also covers pushes you type yourself and pushes buried in `npm run deploy` or a Makefile, which this rule never sees.",
+      "claude_md": [
+        "- Before any `git push`, run `bash \"{S}/run.sh\" push-diff.sh <repo_root>`, then READ the lines",
+        "  it adds (`git diff <upstream>..HEAD -U0 | grep '^+'`) for what fixed patterns cannot match.",
+        "  A file list or `--stat` is NOT that read. Size picks HOW you read it, never WHETHER.",
+        "  Stop and show me if leaks found, or if any of what is leaving went unread."
+      ],
+      "params": {
+        "leak_scan_classes": ["secret", "host", "user"]
+      },
+      "param_rules": {
+        "leak_scan_classes": {
+          "project": true,
+          "merge": "set",
+          "members": ["secret", "host", "user"],
+          "shared_may_remove": ["host", "user"]
+        }
+      }
+    },
+    "claude_md_turn_style": {
+      "group": "claude_md",
+      "zone": "claude_md",
+      "name": "Structured turn style",
+      "default": true,
+      "what": "Claudette proposes a structured turn style for efficient communication. Every reply opens with a PREVIEW of what was understood, before any tool runs; the answer comes as a numbered RESPONSE; a NEXT section lists what waits on you (W1, W2…) and what you can trigger (Go1, Go2…, a bare `go` taking the recommendation). Turns are numbered T1, T2… so you can point back at one. The rules are your own copy, ~/.claude/claudette-turn-style.md, imported into every session; saying \"turn style off\" drops them for one session.",
+      "benefit": "You can tell early whether you were understood and stop a wrong turn; after hours away you find where the answer starts; in a rush you read the last section only; and you answer with a handle (`Go3`, `W2b`, `go`) instead of re-explaining.",
+      "cost": "~1k tokens of context on every request, and three labeled sections on every turn, short ones included. A SessionStart hook switches it off in headless runs (claude -p, the Agent SDK), so a script reading their output is unaffected; it needs no restart, since every headless run is a new process.",
+      "alternative": "Claude Code's free-form replies, or layout rules of your own in CLAUDE.md. The copy is yours either way: edit it and updates never overwrite it — they ask before merging a newer version into it.",
+      "hooks_restart": false,
+      "user_copy": {
+        "path": "claudette-turn-style.md",
+        "source": "turn-style/STYLE.md"
+      },
+      "claude_md": [
+        "@claudette-turn-style.md"
+      ],
+      "hooks": {
+        "SessionStart": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_turn_style_headless.py\"",
+                "timeout": 10
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "statusline": {
+      "group": "claudette",
+      "zone": "settings",
+      "name": "Status line dashboard",
+      "default": true,
+      "what": "Custom colored status line dashboard with behind-the-scenes usage tracking for spending awareness: context % and tokens, git branch with upstream staleness, 5h/7d rate limits coloured by projection, model-scoped weekly limits, clock. Writes a usage snapshot to logs/ on every render that follows an API call. Segments are configurable (order/omission via statusline_segments; see CLAUDETTE_STATUSLINE.md) — the snapshot always stays complete regardless.",
+      "benefit": "Ambient cost/limit awareness without asking; its snapshots are what pretool_throttle, auto_done and keyword_status read.",
+      "cost": "A Python process per render, and claudette takes over the statusline slot — an existing custom line can be wrapped via the statusline_custom parameter.",
+      "alternative": "Native /usage and /cost on demand, or a third-party status line — but pretool_throttle, auto_done and keyword_status go blind.",
+      "params": {
+        "statusline_segments": [
+          "folder_stem",
+          "git",
+          "model",
+          "context",
+          "usage",
+          "repos",
+          "clock_hms",
+          "claude_version",
+          "account"
+        ],
+        "statusline_separator": "  ",
+        "statusline_custom": ""
+      },
+      "settings": {
+        "statusLine": {
+          "type": "command",
+          "command": "{PY} \"{S}/hook_statusline.py\"",
+          "padding": 0
+        }
+      }
+    },
+    "pretool_throttle": {
+      "group": "claudette",
+      "zone": "hooks",
+      "name": "Token throttle",
+      "default": true,
+      "renamed_from": "throttle",
+      "requires": [
+        "statusline"
+      ],
+      "what": "A PreToolUse hook that pauses web, agent, task and workflow calls when cumulative usage runs ahead of the rate-limit window curve.",
+      "benefit": "A long session degrades gracefully instead of hitting the 5h/weekly wall mid-task; paced overnight background jobs become possible.",
+      "cost": "A heavy tool call can be denied mid-flow, which surprises; one hook run before every heavy tool. Off removes only the enforcement hook — the /claudette:throttle skill stays available.",
+      "alternative": "Watch /usage or the status line and pace yourself; /claudette:throttle off is the instant bypass either way.",
+      "hooks": {
+        "PreToolUse": [
+          {
+            "matcher": "WebSearch|WebFetch|Agent|Task|Workflow",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_throttle.py\"",
+                "timeout": 90
+              }
+            ]
+          }
+        ]
+      },
+      "claude_md": [
+        "- See `/claudette:throttle` skill for pacing. Its hook may deny heavy tools (don't work around it)."
+      ]
+    },
+    "auto_done": {
+      "group": "claudette",
+      "zone": "hooks",
+      "name": "Idle done report",
+      "default": true,
+      "renamed_from": ["auto_done_scheduler", "compact_done"],
+      "requires": [
+        "statusline"
+      ],
+      "what": "Runs the done report by itself in a session you left idle, while its prompt cache is still warm: about 50 minutes after the session's last turn, or right before Claude Code compacts the idle session when that compaction is due. The report waits for you and changes nothing. A session whose prompt cache lasts only 5 minutes gets no report, since it would run on a cold cache.",
+      "benefit": "A forgotten session tells you what is still unsaved at warm-cache prices, and a long one lists it before its context is summarized.",
+      "cost": "One done report in tokens per session left idle on a 1-hour cache; nothing enters the conversation while it waits. `.autodone off` (zero tokens) switches it off for a session; the auto_done_watcher parameter picks the mechanism: auto (the compaction gate, plus an idle timer for sessions that compaction will not reach; 1-hour cache only), cron (the older watchdog, which adds two tool calls on the prompt that arms it), idlecompact or both. Takes effect in sessions started after it is switched on.",
+      "alternative": "Run /claudette:done yourself in every session before walking away.",
+      "params": {
+        "auto_done_watcher": "auto"
+      },
+      "hooks": {
+        "UserPromptSubmit": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_watchdog.py\""
+              }
+            ]
+          }
+        ],
+        "PreCompact": [
+          {
+            "matcher": "auto",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_compact_done.py\" gate",
+                "timeout": 30
+              },
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_compact_done.py\" wake",
+                "timeout": 60,
+                "asyncRewake": true
+              }
+            ]
+          }
+        ],
+        "SessionStart": [
+          {
+            "matcher": "compact",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_compact_done.py\" restore",
+                "timeout": 15
+              }
+            ]
+          },
+          {
+            "matcher": "clear",
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_idle_timer.py\" start",
+                "timeout": 10
+              }
+            ]
+          }
+        ],
+        "Stop": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_idle_timer.py\" arm",
+                "timeout": 3900,
+                "asyncRewake": true
+              }
+            ]
+          }
+        ],
+        "SessionEnd": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_idle_timer.py\" end",
+                "timeout": 10
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "dot_commands": {
+      "group": "claudette",
+      "zone": "hooks",
+      "name": "Dot-commands",
+      "default": true,
+      "renamed_from": [
+        "keyword_status",
+        "status_keyword"
+      ],
+      "requires": [
+        "statusline"
+      ],
+      "what": "Prompts starting with `.` are answered by a hook for zero tokens (`.` lists them: .hist, .done, .status, …); the `..` form of any command answers in context instead, which costs a turn but reaches the phone app.",
+      "benefit": "Session questions (prompt history, persistence gaps, usage) answered instantly without spending tokens or polluting the context window.",
+      "cost": "Reserves the `.`/`..` prompt prefixes for the declared command names — `.hist` never reaches Claude (any other dot-leading prompt still does).",
+      "alternative": "Ask the model in a full sentence and spend a turn — plus the answer occupies context for the rest of the session.",
+      "hooks": {
+        "UserPromptSubmit": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_status_prompt.py\""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "turn_timestamp": {
+      "group": "claudette",
+      "zone": "hooks",
+      "name": "Turn timestamps",
+      "default": true,
+      "what": "A Stop hook printing a wall-clock stamp at the end of every turn (terminal only). A scriptless hook — its `# claudette:turn-timestamp` tag marks it as claudette's.",
+      "benefit": "Scroll-back tells you when things happened and how long they took.",
+      "cost": "One line of visual noise per turn.",
+      "alternative": "None native — Claude Code does not timestamp turns.",
+      "hooks": {
+        "Stop": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "printf '{\"systemMessage\":\"%s\"}' \"$(date '+%Y-%m-%d %H:%M:%S')\"  # claudette:turn-timestamp"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "env_utf8": {
+      "group": "claudette",
+      "zone": "settings",
+      "name": "Ensure UTF-8 environment",
+      "default": true,
+      "renamed_from": "utf8_env",
+      "what": "Sets LANG/LC_ALL/PYTHONIOENCODING to UTF-8 in settings.json env for child processes.",
+      "benefit": "Hook scripts stop mangling non-ASCII on Windows — box-drawing characters and accents in particular.",
+      "cost": "Reaches every program Claude Code launches, not just claudette's, and nothing outside Claude Code: it is not Windows' system-wide UTF-8 setting, and the system code page stays as it is. In those programs, Python reads and writes its standard input and output as UTF-8 while the files it opens keep the system encoding, and tools that follow LANG/LC_ALL (Git Bash tools on Windows, most tools on macOS and Linux) format dates and numbers and sort text by en_US rules. Where it can show: output of a Python script run by Claude that ends up in a file or a program expecting the system encoding (a CSV opened in Excel, a legacy tool) carries UTF-8 accents, and a script that parses a date, a number or a sort order from those tools sees the en_US form.",
+      "alternative": "Live with mojibake, or Windows' system-wide UTF-8 beta setting.",
+      "settings": {
+        "env": {
+          "LANG": "en_US.UTF-8",
+          "LC_ALL": "en_US.UTF-8",
+          "PYTHONIOENCODING": "utf-8"
+        }
+      }
+    },
+    "my_root_repo_sync": {
+      "group": "claudette",
+      "zone": "machinery",
+      "name": "MY root repo sync",
+      "default": null,
+      "substrate": "~/.claude/.git",
+      "renamed_from": "root_repo_sync",
+      "what": "Lets claudette run git on your personal ~/.claude repo, which the status line calls `my`: update pulls it, push commits/pushes it (after the write probe), and the status line's repos segment shows `my` when it is behind or holds local work. When off, that repo is simply ignored and the `my` label never appears.",
+      "benefit": "Your CLAUDE.md user content, personal skills and ideas follow you across machines: `/claudette update` pulls them, `/claudette push` pushes them.",
+      "cost": "Claudette mutates a repo it does not own — a pull can merge or conflict in the middle of an update. Do not enable if ~/.claude is a repo that has nothing to do with claudette.",
+      "alternative": "Sync your root repo yourself with plain git; claudette then only ever touches its own plugin repo."
+    },
+    "git_auto_fetch": {
+      "group": "claudette",
+      "zone": "machinery",
+      "name": "Git auto-fetch",
+      "default": true,
+      "what": "Lets claudette fetch a repo in the background when the status line sees that its remote moved, so `↓?` becomes an exact `↓N` — like VS Code's autofetch, but per repo. Switching this on fetches nothing by itself: a repo is fetched once it opts in with `git_auto_fetch_default: true` in its `.claudette.json` (committed: every clone of it, on every machine with this feature on) or `.claudette.local.json` (this machine only). Or set `git_auto_fetch_default=true` here to fetch every repo, and opt single repos out with `false`. The most specific file wins. This switch is the machine veto: off, nothing is fetched on this machine whatever the repos say, and their settings are kept for when you switch it back on. While on, `↓? nofetch` marks a repo whose remote moved and that has not opted in.",
+      "benefit": "The status line tells you how far behind you are before you start work, instead of after a pull; the fetch downloads the new commits so a later pull is instant. Only the current branch is fetched, only when the remote actually moved.",
+      "cost": "Network and disk in the background: at most one fetch per repo every 5 minutes, and only after its remote moved. A fetch moves remote-tracking refs (`origin/main`), never your branches or files. Guarded: no prompts, no hooks, no prune, no tags, no gc, no submodules; never started while another git command holds a lock (one you start during the few seconds of a fetch can still hit a lock error; rerun it), and skipped in shallow clones. A repo someone else commits an opt-in to is fetched too; a `false` in its `.claudette.local.json` refuses it on this machine.",
+      "alternative": "Leave it off: the status line keeps showing `↓?` when a remote moved, and you fetch by hand or let your editor's autofetch do it.",
+      "params": {
+        "git_auto_fetch_default": false
+      },
+      "param_rules": {
+        "git_auto_fetch_default": {"project": true}
+      }
+    },
+    "chart_autoupdate": {
+      "group": "claudette",
+      "zone": "hooks",
+      "name": "Usage chart auto-update",
+      "default": false,
+      "requires": [
+        "statusline"
+      ],
+      "what": "Keeps a cross-machine usage chart — one private page in your own claude.ai account — up to date by itself. Your allowance percentages are account-wide and always current in the status line; what differs per machine is the history, because a machine only samples those percentages while you are working on it. With this on, a `/claudette:done` you type adds this machine's samples whenever they have actually changed. Off, the chart changes only when you run `/claudette:chart` yourself. With it on, an idle auto-done run updates it too — the one thing that run changes. The update runs in a short-lived background Claude session, so your conversation shows one line about it.",
+      "benefit": "A gapless history of your token usage across every machine you work on, without having to remember to ask for it.",
+      "cost": "**What is recorded**, in one private page in YOUR claude.ai account that nothing else can read: the 5-hour and 7-day allowance percentages your own status line displays, this machine's name, and the time of each reading. Nothing from your files, prompts, repos or code. **What it costs**: no round trip in your session — one quick command rides a call the `done` report already makes — and, when a percentage has changed, one short background Claude session on the small model (Claude Code's `claude --bg`) that publishes the update and is removed: roughly 50k tokens of that model, most of it a cached prompt, about a tenth of a typical `done` run in price. Nothing at all after a session that changed no percentage. **No approval prompt**: that session can only read the files it sends and publish them to your page. It needs the `claude` command and a Claude Code with background sessions.",
+      "alternative": "Leave it off and run `/claudette:chart` yourself. On a single machine that is all you need — the chart it draws is already complete. With several, each machine's history reaches the chart only when you run the verb there: the samples wait in that machine's own snapshot folder, so one visit recovers the missing stretch in full, and a gap turns permanent only if you stay away about five weeks (the chart reaches back 36 days). `.chart` says for free how far behind the machine you are on is.",
+      "recommend_note": "Only worth it if you use Claude Code on more than one machine. On a single machine `/claudette:chart` already draws the complete history whenever you ask, so this would cost round trips and add nothing. When on, each machine contributes while you are working on it, through `/claudette:done` at the end of a session — the history fills itself in instead of waiting for your next visit to that machine."
+    },
+    "audible_turn_end": {
+      "group": "audio",
+      "zone": "audio",
+      "name": "Turn-end tone",
+      "default": true,
+      "renamed_from": "audio_turn_end",
+      "what": "Two short descending notes when a turn ends; also the one audio hook that surfaces a silenced Windows mixer as a visible message.",
+      "benefit": "You can look away while it works and hear when it is done; low intensity to minimise annoyance; can be routed to a specific soundcard (audio_device).",
+      "cost": "A sound per turn — the most frequent noise in the set; annoys shared spaces.",
+      "alternative": "Native terminal bell / OS notification channel — one generic ding, no event distinction.",
+      "params": {
+        "audible_turn_end_notes": "F4,F3",
+        "audible_turn_end_total_ms": 200,
+        "audible_turn_end_volume": 30
+      },
+      "hooks": {
+        "Stop": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_play_wav.py\" \"{S}/../generated/audible_turn_end.wav\" --warn-json"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "audible_turn_permission": {
+      "group": "audio",
+      "zone": "audio",
+      "name": "Permission tone",
+      "default": true,
+      "renamed_from": "audio_permission",
+      "what": "Two rising notes the moment a permission prompt is waiting for you.",
+      "benefit": "The one interruption that blocks ALL progress gets your attention immediately. If you miss the notes, the spoken notification (audible_speak_permission) follows a few seconds later.",
+      "cost": "A sound per permission prompt — frequent in manual permission mode.",
+      "alternative": "OS notification channel fires on permission requests too — visual, missable from another room.",
+      "params": {
+        "audible_turn_permission_notes": "C5,C6",
+        "audible_turn_permission_total_ms": 200,
+        "audible_turn_permission_volume": 60
+      },
+      "hooks": {
+        "PermissionRequest": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_play_wav.py\" \"{S}/../generated/audible_turn_permission.wav\" && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PermissionRequest\",\"permissionDecision\":\"ask\"}}'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "audible_failure": {
+      "group": "audio",
+      "zone": "audio",
+      "name": "Failure alarm",
+      "default": true,
+      "renamed_from": "audio_failure",
+      "what": "An insistent alternating alarm (~7 s) when a turn fails — expired login, server down, usage exceeded.",
+      "benefit": "The one event you must not miss from the next room: a dead turn otherwise looks exactly like a long-running one.",
+      "cost": "Deliberately unpleasant and long, by design.",
+      "alternative": "Noticing the absence of the turn-end tone — weak.",
+      "params": {
+        "audible_failure_notes": "B3,C4,B3,C4,B3,C4,B3",
+        "audible_failure_total_ms": 1000,
+        "audible_failure_volume": 80
+      },
+      "hooks": {
+        "StopFailure": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "{PY} \"{S}/hook_play_wav.py\" \"{S}/../generated/audible_failure.wav\""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "audible_speak_permission": {
+      "group": "audio",
+      "zone": "audio",
+      "name": "Speak permission prompts",
+      "default": true,
+      "renamed_from": "audio_speak_notification",
+      "what": "Speaks permission-prompt notifications out loud, including the session name if you renamed it.",
+      "benefit": "You know WHICH session is blocked without switching windows — tones cannot carry that. Fires a few seconds after the permission tone, so quick answers never hear it.",
+      "cost": "It reads text aloud to whoever is in the room.",
+      "alternative": "OS toast notifications — silent and visual; or the audible_turn_permission tones only.",
+      "hooks": {
+        "Notification": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "async": true,
+                "command": "{PY} \"{S}/hook_speak_notification.py\" {P:audible_speak_voice} {P:audible_speak_rate} {P:audible_speak_volume} --only permission  # claudette:audible_speak_permission"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "audible_speak_idle": {
+      "group": "audio",
+      "zone": "audio",
+      "name": "Speak idle prompts",
+      "default": true,
+      "renamed_from": "audio_speak_notification",
+      "what": "Speaks the idle-prompt notification (a session has been waiting ~60s for input) with the session name. Skipped for sessions that never received a real prompt.",
+      "benefit": "The reminder that something finished and is waiting on you, naming which session.",
+      "cost": "It reads text aloud to whoever is in the room.",
+      "alternative": "OS toast notifications, or the turn-end tone plus your own attention.",
+      "hooks": {
+        "Notification": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "async": true,
+                "command": "{PY} \"{S}/hook_speak_notification.py\" {P:audible_speak_voice} {P:audible_speak_rate} {P:audible_speak_volume} --only idle  # claudette:audible_speak_idle"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "audible_speak_other": {
+      "group": "audio",
+      "zone": "audio",
+      "name": "Speak other notifications",
+      "default": true,
+      "renamed_from": "audio_speak_notification",
+      "what": "Speaks every other notification type out loud — the catch-all for anything that is not a permission or idle prompt.",
+      "benefit": "Future notification types stay audible until they earn their own toggle.",
+      "cost": "Unknown future notifications will be read aloud unreviewed.",
+      "alternative": "OS toast notifications for the rare rest.",
+      "hooks": {
+        "Notification": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "async": true,
+                "command": "{PY} \"{S}/hook_speak_notification.py\" {P:audible_speak_voice} {P:audible_speak_rate} {P:audible_speak_volume} --only other  # claudette:audible_speak_other"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "claude_no_attribution": {
+      "group": "claude_settings",
+      "zone": "settings",
+      "name": "Ensure no attribution in commits",
+      "default": true,
+      "what": "Sets Claude Code's native attribution.commit to \"\" and attribution.sessionUrl to false: no Co-Authored-By trailer and no claude.ai session link appended to your commits.",
+      "benefit": "Clean authorship in git history — harness-enforced, zero context cost, cannot be forgotten by a session. Covers both trailers, including the session link, which arrived defaulted-on under a key the older includeCoAuthoredBy opt-out did not gate.",
+      "cost": "Commits carry no record that Claude worked on them, and no link back to the session that produced them — worth keeping if you rely on that trail for review or audit.",
+      "alternative": "A CLAUDE.md instruction — model-interpreted, so a forgetful session can still add the trailer. Or set only one of the two fields by hand.",
+      "settings": {
+        "attribution": {
+          "commit": "",
+          "sessionUrl": false
+        }
+      }
+    },
+    "prompt_cache_1h": {
+      "group": "claude_settings",
+      "zone": "settings",
+      "name": "Ensure a 1-hour prompt cache",
+      "default": true,
+      "what": "Sets Claude Code's promptCacheTtl to \"1h\" for the main conversation, so a session keeps its prompt cache across a break of up to an hour instead of 5 minutes.",
+      "benefit": "Coming back to a session within the hour re-reads its context from the cache instead of re-writing all of it. Claude Code documents 1 hour as the default on a Claude subscription, yet interactive sessions were seen on 5 minutes, and this setting brought the hour back. The idle done report and Claude Code's idle compaction both need it.",
+      "cost": "A 1-hour cache write is billed higher than a 5-minute one, about 2x the input price instead of 1.25x, on every write. It pays off whenever a break longer than 5 minutes would otherwise re-write the whole context.",
+      "alternative": "Claude Code's automatic choice, documented as 1 hour on a subscription within its usage limits and 5 minutes on an API key, Bedrock, Vertex or Foundry, or in paid overage. On a subscription the hour also depends on a list of request types Anthropic's server sends, which left interactive sessions out: they ran on 5 minutes with nothing saying so.",
+      "recommend_note": "Recommended on a Claude subscription. Answer no if you use an API key, Bedrock, Vertex or Foundry, or pay for extra usage: this setting overrides Claude Code's own switch to 5 minutes, so there it raises what you pay.",
+      "settings": {
+        "promptCacheTtl": "1h"
+      }
+    },
+    "claude_tui_fullscreen": {
+      "group": "claude_settings",
+      "zone": "settings",
+      "name": "Ensure fullscreen TUI",
+      "default": true,
+      "renamed_from": "tui_fullscreen",
+      "what": "Sets the Claude Code TUI to fullscreen.",
+      "benefit": "Highly convenient mouse control of the console cursor.",
+      "cost": "None.",
+      "alternative": "Toggle it yourself in /config.",
+      "settings": {
+        "tui": "fullscreen"
+      }
+    },
+    "claude_remote_control_startup": {
+      "group": "claude_settings",
+      "zone": "settings",
+      "name": "Ensure remote control at startup",
+      "default": null,
+      "renamed_from": "remote_control_startup",
+      "what": "Enables remote control at session startup.",
+      "benefit": "Every session is drivable from the phone app without setup — continue on mobile even when you forgot /rc.",
+      "cost": "Every session is remotely reachable by default (exposure vs convenience).",
+      "alternative": "Type /rc manually in every session you want remote access to.",
+      "settings": {
+        "remoteControlAtStartup": true
+      }
+    },
+    "claude_agent_push_notifications": {
+      "group": "claude_settings",
+      "zone": "settings",
+      "name": "Ensure agent push notifications",
+      "default": null,
+      "renamed_from": "agent_push_notifications",
+      "what": "Pushes a phone notification when a background agent finishes.",
+      "benefit": "Be notified even away from the computer for long-running agents.",
+      "cost": "Phone pings; noisy if you run many agents.",
+      "alternative": "Check the terminal, or the audible_* hooks if you are within earshot.",
+      "settings": {
+        "agentPushNotifEnabled": true
+      }
+    },
+    "claude_permission_mode_auto": {
+      "group": "claude_settings",
+      "zone": "settings",
+      "name": "Ensure auto permission mode",
+      "default": null,
+      "renamed_from": "permission_mode_auto",
+      "what": "SECURITY POSTURE: sets the default permission mode to `auto`, so Claude Code decides routine tool permissions instead of asking you.",
+      "benefit": "Far fewer prompts; smoother autonomous work.",
+      "cost": "A real loosening — you stop seeing what is being approved. Must be answered explicitly; --accept-defaults will not answer it.",
+      "alternative": "Targeted permissions.allow rules for the specific commands you trust, or shift+tab auto mode per session.",
+      "arms_enforcement": true,
+      "settings": {
+        "permissions": {
+          "defaultMode": "auto"
+        }
+      }
+    },
+    "claude_skip_auto_permission_prompt": {
+      "group": "claude_settings",
+      "zone": "settings",
+      "name": "Ensure auto-mode offer skipped",
+      "default": null,
+      "renamed_from": "skip_auto_permission_prompt",
+      "what": "SECURITY POSTURE: suppresses the prompt that offers to enable auto permission mode.",
+      "benefit": "Removes a recurring nag once you have decided about auto mode either way.",
+      "cost": "Hides a security decision point; meaningless without an answer to claude_permission_mode_auto. Must be answered explicitly.",
+      "alternative": "Dismiss the prompt when it appears.",
+      "settings": {
+        "skipAutoPermissionPrompt": true
+      }
+    },
+    "claude_allow_claudette_scripts": {
+      "group": "claude_settings",
+      "zone": "settings",
+      "name": "Ensure claudette scripts pre-allowed",
+      "default": null,
+      "renamed_from": "permissions",
+      "what": "If you trust claudette's scripts and don't want to approve them one by one, allow them once here — one permissions.allow rule on the run.sh dispatcher, which only executes bare-named files inside claudette's own scripts/ directory.",
+      "benefit": "Routine claudette work (status, update, doctor, push preview) runs without permission prompts, deterministically — immune to permission-checker tightening that turned classifier-judged shapes into hard prompts (Claude Code 2.1.232, 2026-08-13).",
+      "cost": "A standing grant on a mutable script: whoever can push to this repo can, mechanically, pre-approve script behavior on your machine. The repo history and push-diff.sh are the actual guards. Must be answered explicitly.",
+      "alternative": "Answer the prompts every time, or rely on auto permission mode's classifier judging each call.",
+      "permissions": [
+        "Bash(bash \"{S}/run.sh\":*)",
+        "Read(file_path:~/.claude/settings.json)",
+        "Read(file_path:~/.claude/CLAUDE.md)",
+        "Read(file_path:{R}/**)"
+      ]
+    },
+    "claude_history_floor": {
+      "name": "Ensure a year of session history",
+      "group": "claude_settings",
+      "zone": "settings",
+      "default": true,
+      "what": "Guarantees Claude Code keeps local session transcripts for at least history_floor_days (365 by default). This is a FLOOR, not a value: a machine already set higher keeps what it has and is never lowered; only a machine below the floor is raised. A machine with no cleanupPeriodDays key is on Claude Code's default of 30 days, which is the case this exists for.",
+      "benefit": "`.sess` can only find what still exists on disk. At the 30-day default, transcripts are deleted a month after you write them, silently and unrecoverably, and the loss is invisible until you go looking for an old session and it is gone.",
+      "cost": "Disk, in proportion to how much you use Claude Code — order of a gigabyte per year at daily use. `.sess` reports your own history's actual depth in its footer, and `.sess :*` search time grows with it, bounded by its own budget.",
+      "alternative": "Set cleanupPeriodDays by hand in settings.json on every machine and remember to do it on the next one.",
+      "settings_min": {
+        "cleanupPeriodDays": "{P:history_floor_days}"
+      },
+      "params": {
+        "history_floor_days": 365
+      }
+    }
+  }
+}
