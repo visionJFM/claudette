@@ -7,6 +7,12 @@ Each published version of claudette, newest first. The numbers follow
 - the second when a feature, a verb or a dot-command is added;
 - the third for fixes and wording.
 
+## [1.2.3] - 2026-11-18
+
+- The update screen lets images through (PNG, JPEG, GIF whose first bytes match the
+  extension), so a new screenshot no longer holds an install's update. Code that starts
+  naming an image is held instead.
+
 ## [1.2.2] - 2026-11-18
 
 - The README shows each feature under its own heading, with a screenshot.

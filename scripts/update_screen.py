@@ -28,7 +28,10 @@ question to the user.
     a call), not prose; in other text files, which an agent may follow, only a fetch, a
     pipe into a shell or a credential file; a URL to a host the previous version never
     named; deletion means bulk deletion (a tree, rm -r);
-  - binary: a file that is not text.
+  - image-in-code: a code file that starts naming an image file, the one plain way to
+    make an image run;
+  - binary: a file that is not text, except a PNG, JPEG or GIF image whose first bytes
+    match its extension: no script opens one, GitHub shows them in the README.
 The screen runs from the INSTALLED copy, so the incoming commit never judges itself. It
 catches the listed shapes and nothing else: a clean screen is not an audit.
 
@@ -72,6 +75,7 @@ KINDS = [
                      r"\|\s*(?:ba)?sh\b|\biex\b", True),
     ("deletion", r"\bshutil\.rmtree\(|\brm\s+-[A-Za-z]*r[A-Za-z]*\s|Remove-Item\b[^\n]*-Recurse",
      False),
+    ("image-in-code", r"\.(?:png|jpe?g|gif)\b", False),
 ]
 KINDS = [(k, re.compile(rx), anywhere) for k, rx, anywhere in KINDS]
 URL = re.compile(r"https?://([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
@@ -92,6 +96,16 @@ def show(repo, rev, path):
 
 def _is_text(data):
     return b"\0" not in data[:8192]
+
+
+IMAGES = {".png": (b"\x89PNG\r\n\x1a\n",), ".jpg": (b"\xff\xd8\xff",),
+          ".jpeg": (b"\xff\xd8\xff",), ".gif": (b"GIF87a", b"GIF89a")}
+
+
+def _is_image(path, data):
+    """Extension and first bytes agree on an image: neither a renamed file nor stray bytes."""
+    sigs = IMAGES.get(os.path.splitext(path)[1].lower())
+    return bool(sigs) and data.startswith(sigs)
 
 
 def _registry(repo, rev):
@@ -157,10 +171,11 @@ def screen(repo, a, b, keep=None):
         if status == "D":
             continue
         new = show(repo, b, path)
-        if new is None:
+        if new is None or _is_image(path, new):
             continue
         if not _is_text(new):
-            found.append({"kind": "binary", "file": path, "detail": "not a text file"})
+            found.append({"kind": "binary", "file": path,
+                          "detail": "neither text nor an image: ask the user"})
             continue
         old = show(repo, a, path) if status != "A" else None
         old_text = old.decode("utf-8", "replace") if old is not None and _is_text(old) else ""

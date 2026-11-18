@@ -23,9 +23,11 @@ you can judge it before installing. Everything here can be checked in `scripts/`
 - An update of an install is screened before it lands, by the screen of the version already
   installed: the difference is checked for changes to the update path itself, to what a
   feature already switched on applies, and for code that newly reaches the network,
-  credentials or other processes, runs code it builds, or deletes trees. Nothing flagged: the
-  update lands. A finding: nothing changes until an agent has read the flagged changes, and
-  you are asked when it is not sure. The screen catches the shapes it lists; it is not an
+  credentials or other processes, runs code it builds, or deletes trees, and for files that
+  are not text. A PNG, JPEG or GIF image passes when its first bytes match its extension;
+  code that starts naming an image is flagged instead. Nothing flagged: the update lands. A
+  finding: nothing changes until an agent has read the flagged changes, and you are asked
+  when it is not sure. The screen catches the shapes it lists; it is not an
   audit.
 - The usage chart's update (an optional feature) runs one background Claude Code session,
   removes it when it is done, and moves that session's transcript from `~/.claude/projects`
