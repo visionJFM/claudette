@@ -80,11 +80,15 @@ Decide from it, in order:
      from this folder (an install, not a development clone), offer to reinstall, whatever the
      reason: the agent install section of `README.md`, which keeps the user's answers and
      logs. Name the edited files `pull.sh` listed, which the reinstall replaces.
-   - Otherwise, `reason: "auth"` (exit 4) means the remote refused the credential — almost
-     always an expired access token: nothing was pulled, the named repos cannot even tell
-     how far behind they are, and the fix is re-authenticating (`git -C <repo> ls-remote
-     origin` prompts) before re-running `/claudette update`. Any conflict: offer stash/pop
-     first.
+   - Otherwise, `reason: "auth"` (exit 4) means git could not authenticate to the remote:
+     nothing was pulled, and the named repos cannot even tell how far behind they are. Give
+     the cause as git's own lines in `git_said`, quoted, rather than a cause they do not
+     state: "terminal prompts disabled" means the remote wanted a credential and git found
+     none it could use without asking (the line before it, if any, is the credential
+     helper's error), and a token that works elsewhere can still fail this way. The fix is
+     what those lines call for, checked with `git -C <repo> ls-remote origin` (it may ask
+     for a credential) before re-running `/claudette update`.
+     Any conflict: offer stash/pop first.
 2. `first_contact` false AND `needs_decision` AND `copy_updates` empty → **report in a few lines and STOP —
    do not read CLAUDETTE_UPDATE.md, do not run `--features-json`.** The report: what the
    pull brought (one line; `registry_changed` says whether the registry moved), restart

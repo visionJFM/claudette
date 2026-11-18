@@ -7,6 +7,16 @@ Each published version of claudette, newest first. The numbers follow
 - the second when a feature, a verb or a dot-command is added;
 - the third for fixes and wording.
 
+## [1.2.5] - 2026-11-18
+
+- A pull that cannot authenticate quotes git's own error, in the report and in the update
+  plan, instead of guessing an expired token.
+- Run logs (`logs/config_runs/`) mask credentials: an `Authorization` or `extraHeader` value, a
+  password in a URL, a `token=` value. Logs written by earlier versions are masked at the next
+  update.
+- The README shows how to read about a feature: type its number in `/claudette prefs` to see
+  what it does, its benefit, its cost and the alternative, with a screenshot.
+
 ## [1.2.3] - 2026-11-18
 
 - The update screen lets images through (PNG, JPEG, GIF whose first bytes match the

@@ -30,15 +30,30 @@ RUN_LOG="$(cd "$HERE" && "$PYTHON" -c "import paths; print(paths.new_run_log())"
 export GIT_TERMINAL_PROMPT=0
 export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -oBatchMode=yes}"
 
-# stderr of a REFUSED remote, not an unreachable one — same list as
+# stderr of an authentication failure, not an unreachable remote — same list as
 # git_upstreams.py AUTH_RE (a private GitHub repo with a dead fine-grained PAT
-# answers "Repository not found", never "401").
+# answers "Repository not found", never "401"). It spans different causes:
+# "Authentication failed" is a credential refused; "could not read Username …
+# terminal prompts disabled" is a remote asking for a credential that no helper
+# supplied (none stored, or a helper that failed, its own error on the line
+# above). Which one it was is in git's words, quoted below rather than guessed
+# (CLAUDETTE_DESIGN.md "Run logs are masked, and pull failures quote git").
 AUTH_GREP='authentication failed|invalid username or password|could not read (username|password)|terminal prompts disabled|bad credentials|permission denied|access denied|repository not found|(^|[^0-9])(401|403)([^0-9]|$)'
 
-# pull_repos runs inside a `| tee` pipeline, so it cannot export anything to
-# this shell — it records the verdict in a file the parent reads afterwards.
+# pull_repos runs inside a pipeline (the run log's), so it cannot export anything
+# to this shell — it records the verdict in files the parent reads afterwards:
+# one `<reason>:<repo>` line per failed repo, and git's own last lines.
 FAIL_MARK="${TMPDIR:-/tmp}/claudette-pull-fail.$$"
+SAID_MARK="${TMPDIR:-/tmp}/claudette-pull-said.$$"
 : > "$FAIL_MARK"
+: > "$SAID_MARK"
+
+# git's last lines for the plan's `pull_failed.git_said`: the cause in its own
+# words, capped so a long merge output cannot flood the plan.
+record_said() {
+    printf '%s\n' "$2" | sed '/^[[:space:]]*$/d' | tail -n 4 | cut -c1-240 \
+        | while IFS= read -r line; do printf '%s\t%s\n' "$1" "$line"; done >> "$SAID_MARK"
+}
 
 pull_repos() {
     for repo in "$HOME/.claude" "$ROOT"; do
@@ -100,6 +115,7 @@ pull_repos() {
             "$PYTHON" "$HERE/git_upstreams.py" "$repo" --clear >/dev/null 2>&1
             continue
         fi
+        record_said "$repo" "$out"
         if [ -n "$ff" ]; then
             # The published repo asks for no credential: a refusal means it moved or
             # is no longer public, which a reinstall from its current address repairs.
@@ -118,11 +134,17 @@ pull_repos() {
                 printf '%s\n' "$edited" | sed 's/^/!!!   /'
             fi
         elif printf '%s' "$out" | grep -qiE "$AUTH_GREP"; then
-            echo "!!! claudette: the remote REFUSED your credential for $repo (rc=$rc)."
+            echo "!!! claudette: git could not authenticate to the remote of $repo (rc=$rc)."
+            echo "!!! The cause is in git's own words above, which claudette does not reinterpret."
+            if printf '%s' "$out" | grep -qiE 'terminal prompts disabled'; then
+                echo "!!! \"terminal prompts disabled\" is claudette forbidding git to ask: the remote"
+                echo "!!! wanted a credential and git found none it could use without asking."
+                echo "!!! A line before it, if any, is the credential helper's own error."
+            fi
             echo "!!! Nothing was pulled — this machine keeps running its LOCAL checkout,"
-            echo "!!! and can no longer tell how far behind it is. Most likely cause: the"
-            echo "!!! access token has expired. Re-authenticate, then re-run /claudette update:"
-            echo "!!!   git -C \"$repo\" ls-remote origin      # prompts for the new credential"
+            echo "!!! and can no longer tell how far behind it is. Once git's error is fixed,"
+            echo "!!! check it, then re-run /claudette update:"
+            echo "!!!   git -C \"$repo\" ls-remote origin      # may ask for a credential"
             echo "auth:$repo" >> "$FAIL_MARK"
         else
             echo "!!! claudette: git pull failed for $repo (rc=$rc) — see the output above."
@@ -140,9 +162,17 @@ PREFS_BEFORE=0
 REG_SHA_BEFORE="$(git -C "$ROOT" hash-object "$ROOT/features_def.json" 2>/dev/null || true)"
 VERSION_BEFORE="$(cd "$HERE" && "$PYTHON" -c "import paths; print(paths.version() or '')" 2>/dev/null || true)"
 
-if [ -n "${CLAUDETTE_RUN_LOG:-}" ]; then
-    { echo "== pull =="; pull_repos; } 2>&1 | tee -a "$CLAUDETTE_RUN_LOG"
+# The run log is written masked, as log_run.sh explains; a masker that does not
+# work would kill the pull through its pipe, so it is tried first, and failing
+# that the pull runs with its output on screen only.
+MASK_OK=""
+[ -n "${CLAUDETTE_RUN_LOG:-}" ] \
+    && [ "$("$PYTHON" "$HERE/redact.py" --selftest 2>/dev/null)" = "ok" ] && MASK_OK=1
+if [ -n "$MASK_OK" ]; then
+    { echo "== pull =="; pull_repos; } 2>&1 | "$PYTHON" "$HERE/redact.py" --tee "$CLAUDETTE_RUN_LOG"
 else
+    [ -n "${CLAUDETTE_RUN_LOG:-}" ] \
+        && echo "== pull ==  (output not logged: redact.py did not run)" >> "$CLAUDETTE_RUN_LOG"
     pull_repos
 fi
 
@@ -150,14 +180,17 @@ fi
 # --update-plan below so the plan (the block that survives truncation) carries
 # it. The apply still runs: the local checkout is complete and installing from
 # it keeps the machine coherent — what must not happen is doing that SILENTLY.
+# Repos are separated by newlines, not spaces: a home folder may hold a space.
 PULL_FAILED=""
 if grep -q '^auth:' "$FAIL_MARK" 2>/dev/null; then
-    PULL_FAILED="auth:$(sed -n 's/^auth://p' "$FAIL_MARK" | tr '\n' ' ')"
+    PULL_FAILED="auth:$(sed -n 's/^auth://p' "$FAIL_MARK")"
 elif [ -s "$FAIL_MARK" ]; then
-    PULL_FAILED="other:$(sed -n 's/^other://p' "$FAIL_MARK" | tr '\n' ' ')"
+    PULL_FAILED="other:$(sed -n 's/^other://p' "$FAIL_MARK")"
 fi
 rm -f "$FAIL_MARK"
 [ -n "$PULL_FAILED" ] && export CLAUDETTE_PULL_FAILED="$PULL_FAILED"
+[ -s "$SAID_MARK" ] && export CLAUDETTE_PULL_SAID="$(cat "$SAID_MARK")"
+rm -f "$SAID_MARK"
 
 "$PYTHON" "$HERE/features_apply.py" -y "$@"
 rc=$?
@@ -176,8 +209,9 @@ if [ -n "$REG_SHA_BEFORE" ] && [ -n "$REG_SHA_AFTER" ]; then
         export CLAUDETTE_REGISTRY_CHANGED=1
     fi
 fi
-if [ -n "${CLAUDETTE_RUN_LOG:-}" ]; then
-    "$PYTHON" "$HERE/features_apply.py" --update-plan 2>&1 | tee -a "$CLAUDETTE_RUN_LOG"
+if [ -n "$MASK_OK" ]; then
+    "$PYTHON" "$HERE/features_apply.py" --update-plan 2>&1 \
+        | "$PYTHON" "$HERE/redact.py" --tee "$CLAUDETTE_RUN_LOG"
 else
     "$PYTHON" "$HERE/features_apply.py" --update-plan
 fi

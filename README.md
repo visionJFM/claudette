@@ -79,9 +79,10 @@ the end of this page.
 
 ### 🧩 Many other built-in features
 
-- CLAUDE.md instructions, and more.
-- `/claudette prefs` lists them all, and each one runs only once you say yes. \
+- `/claudette prefs` lists them all, and you can turn them on or off as needed. \
   ![The /claudette prefs list: the CLAUDE.md rules, each with its state](docs/prefs.png)
+- Type a feature's number to see **what it does**, its **benefit**, its **cost** and the **alternative**. \
+  ![One feature explained: what it does, its benefit, its cost and the alternative](docs/explain.png)
 
 ## You decide what runs
 

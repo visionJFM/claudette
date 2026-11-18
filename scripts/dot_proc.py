@@ -28,6 +28,7 @@ import dot_common as dc
 import dot_sess
 import paths
 import sess_launch
+from redact import mask  # one masker for this display and the run logs
 
 WIDTH = dc.WIDTH
 USAGE = ".proc"
@@ -511,40 +512,6 @@ def collect(procs, own_sess, live, now=None):
 
 
 # ----------------------------------------------------------------- render
-
-_KV = re.compile(r"(?i)((?:token|secret|password|passwd|pwd|api[-_]?key|auth\w*|"
-                 r"credential\w*)[\"']?\s*[=:]\s*[\"']?)[^\s\"'&;,]+")
-_SCHEME = re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{12,}")
-
-
-def _leak_re():
-    """The push guard's own patterns (one source), plus two display-only rules.
-    The guard rejects *token*-style patterns because a false positive stops a
-    push; here a false positive only hides a value, so the wider net is right."""
-    pats = []
-    try:
-        with open(os.path.join(paths.SCRIPTS, "leak_patterns.re"), encoding="utf-8") as f:
-            pats = [ln.strip() for ln in f if ln.strip() and not ln.startswith("#")]
-    except OSError:
-        pass
-    # Each pattern names a secret by its PREFIX and minimum length; the rest of the
-    # token goes too, or "***" would sit next to the key's tail.
-    try:
-        return re.compile("|".join("(?:%s)[A-Za-z0-9_+/=-]*" % p for p in pats)) if pats else None
-    except re.error:
-        return None
-
-
-def mask(s, _cache={}):
-    """Scheme first: "Authorization: Bearer <tok>" would otherwise lose only the
-    word "Bearer" to the key=value rule and keep the token."""
-    if "re" not in _cache:
-        _cache["re"] = _leak_re()
-    s = _SCHEME.sub(lambda m: m.group(1) + " ***", s)
-    s = _KV.sub(lambda m: m.group(1) + "***", s)
-    if _cache["re"] is not None:
-        s = _cache["re"].sub("***", s)
-    return s
 
 
 def ago(sec):

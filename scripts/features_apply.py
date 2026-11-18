@@ -53,6 +53,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import paths
 import prefs
 import python_resolve
+import redact
 import user_copy
 
 if platform.system() == "Windows":
@@ -164,25 +165,40 @@ _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
 class _Tee:
-    """Mirror a stream into the run log, ANSI stripped, terminal unchanged.
+    """Mirror a stream into the run log, ANSI stripped and masked (redact.py),
+    terminal unchanged.
 
     `isatty()` MUST pass through to the real stream: consent depends on it —
     --update/--prefs prompt only on a TTY, and a wrapper that reported False
-    would silently turn an interactive review into accept-the-defaults."""
+    would silently turn an interactive review into accept-the-defaults.
+
+    The log copy is masked a whole line at a time, since print() hands over a
+    line in pieces and a credential split across two writes would match no
+    pattern; flush() writes the unfinished rest."""
 
     def __init__(self, stream, fh):
         self._stream, self._fh = stream, fh
+        self._pending = ""
+
+    def _log(self, text):
+        try:
+            self._fh.write(redact.mask(_ANSI_RE.sub("", text)))
+        except Exception:
+            pass          # a full disk must not take the apply down with it
 
     def write(self, data):
         n = self._stream.write(data)
-        try:
-            self._fh.write(_ANSI_RE.sub("", data))
-        except Exception:
-            pass          # a full disk must not take the apply down with it
+        self._pending += data
+        if "\n" in self._pending:
+            done, _, self._pending = self._pending.rpartition("\n")
+            self._log(done + "\n")
         return n
 
     def flush(self):
         self._stream.flush()
+        if self._pending:
+            self._log(self._pending)
+            self._pending = ""
         try:
             self._fh.flush()
         except Exception:
@@ -208,13 +224,20 @@ if not (args.status or args.features_json or args.doctor or args.auth
         # Line buffered: the log stays complete even if the run is killed
         # mid-way, which is exactly when it is worth reading.
         _run_fh = open(RUN_LOG, "a", encoding="utf-8", errors="replace", buffering=1)
-        _run_fh.write("== apply == %s  %s\n"
-                      % (time.strftime("%Y-%m-%dT%H:%M:%S"),
-                         " ".join(sys.argv[1:]) or "(no args)"))
+        _run_fh.write(redact.header("apply", sys.argv[1:] or ["(no args)"]) + "\n")
         sys.stdout = _Tee(sys.stdout, _run_fh)
         sys.stderr = _Tee(sys.stderr, _run_fh)
     except Exception:
         RUN_LOG = None    # never let logging block an apply
+    if RUN_LOG:
+        # Logs from before masking may hold a credential typed on a push's
+        # command line; mask them in place (CLAUDETTE_DESIGN.md "Run logs are
+        # masked, and pull failures quote git"). Cheap and idempotent, so it
+        # needs no marker.
+        try:
+            redact.scrub_logs(paths.CONFIG_RUNS, skip=RUN_LOG)
+        except Exception:
+            pass
 
 CLAUDE_DIR = pathlib.Path(paths.CLAUDE_DIR)
 SETTINGS = CLAUDE_DIR / "settings.json"
@@ -2115,7 +2138,9 @@ def doctor_rows(repair=True):
                          f"({(int(time.time()) - int(succ)) // 86400}d stale)"
                          if succ else "never answered on this machine")
                 repo = e.get("repo") or p.stem
-                why = (e.get("last_error") or "").splitlines()[0][:60]
+                # git's first line names the cause (a credential helper's own
+                # error comes first): long enough to read it whole.
+                why = redact.mask(((e.get("last_error") or "").splitlines() or [""])[0][:160])
                 # The cache spans every repo any session's statusline ever
                 # rendered in. A claudette doctor warn about an unrelated
                 # private repo the user merely visited is honest but noise:
@@ -2128,11 +2153,12 @@ def doctor_rows(repair=True):
                     foreign += 1
         for repo, br, since, why in blocked:
             rows.append(("git upstream staleness", "warn",
-                         f"{paths.tilde(repo, '~')} ({br}): the remote REFUSED the credential — "
-                         f"staleness unknown, not 0; {since}"
+                         f"{paths.tilde(repo, '~')} ({br}): git could not authenticate to the "
+                         f"remote — staleness unknown, not 0; {since}"
                          + (f"; git said: {why}" if why else ""),
                          f'git -C "{repo}" ls-remote origin '
-                         "# re-enter the credential (expired token?), then /claudette update"))
+                         "# once what git said is fixed (may ask for a credential), "
+                         "then /claudette update"))
         if repair:
             # _store() writes <file>.json.tmp<pid> then os.replace()s it; a
             # process killed in between (render timeout) strands the tmp with
@@ -2465,10 +2491,25 @@ if args.update_plan:
     # reason the pre-pull snapshots do — and it must be IN the plan, because the
     # plan is the block that survives a caller keeping only the tail: a pull
     # that could not authenticate otherwise renders as "nothing to decide".
+    # Repos come newline-separated (a home folder may hold a space); a pull.sh
+    # from before 1.2.5, still running while this file was updated under it,
+    # separates them with spaces. `git_said` is git's own last lines per repo,
+    # so the report names the cause in git's words instead of guessing one.
     _pull_fail = os.environ.get("CLAUDETTE_PULL_FAILED")
+    _said = {}
+    for _ln in os.environ.get("CLAUDETTE_PULL_SAID", "").splitlines():
+        _repo, _tab, _text = _ln.partition("\t")
+        if _tab:
+            _said.setdefault(_repo, []).append(redact.mask(_text))
+    if _pull_fail:
+        _fail_repos = _pull_fail.split(":", 1)[1]
+        _fail_repos = ([r for r in _fail_repos.splitlines() if r.strip()]
+                       if "\n" in _fail_repos.strip() or _fail_repos.strip() in _said
+                       else _fail_repos.split())
     print(json.dumps({
         "pull_failed": ({"reason": _pull_fail.split(":", 1)[0],
-                         "repos": _pull_fail.split(":", 1)[1].split()}
+                         "repos": _fail_repos,
+                         "git_said": {r: _said[r] for r in _fail_repos if r in _said}}
                         if _pull_fail else None),
         "first_contact": (_pre == "0") if _pre in ("0", "1")
                          else not os.path.exists(prefs.LOCAL_PATH),

@@ -37,8 +37,21 @@ if [ -z "${CLAUDETTE_RUN_LOG:-}" ]; then
     exec "$@"
 fi
 
-{ echo "== $SECTION == $(date +%Y-%m-%dT%H:%M:%S)  $*"; "$@"; } 2>&1 \
-    | tee -a "$CLAUDETTE_RUN_LOG"
+# The log is written masked (redact.py): a push typed with its credential on the
+# command line (`-c http.extraHeader=Authorization: Bearer …`) must not leave the
+# credential in logs/ (CLAUDETTE_DESIGN.md "Run logs are masked, and pull failures
+# quote git"). A masker that
+# does not work would kill the command through its pipe, so it is tried first;
+# failing that, the command runs and the log records only that its output is
+# missing, never the raw text.
+if [ "$("$PYTHON" "$HERE/redact.py" --selftest 2>/dev/null)" != "ok" ]; then
+    echo "== $SECTION == $(date +%Y-%m-%dT%H:%M:%S)  (output not logged: redact.py did not run)" \
+        >> "$CLAUDETTE_RUN_LOG" 2>/dev/null
+    exec "$@"
+fi
+
+{ "$PYTHON" "$HERE/redact.py" --header "$SECTION" "$@"; "$@"; } 2>&1 \
+    | "$PYTHON" "$HERE/redact.py" --tee "$CLAUDETTE_RUN_LOG"
 status=${PIPESTATUS[0]}
 echo "Run log: $CLAUDETTE_RUN_LOG"
 exit "$status"

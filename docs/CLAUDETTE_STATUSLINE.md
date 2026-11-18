@@ -84,7 +84,7 @@ One label per repo claudette spans, each with one arrow saying what it needs:
 | `↑my` | the personal `~/.claude` repo holds local work (uncommitted files or unpushed commits) | commit/push it |
 | `↓claudette` | the plugin clone is behind its remote | `/claudette` pull |
 | `⇅claudette` | parted histories after a rewrite | save any local change, then reset the clone to its remote — **not** a pull |
-| `⚠claudette` | the remote REFUSED the credential (expired/revoked token) — staleness can no longer be observed | re-auth: `git -C <repo> ls-remote origin`, then `/claudette update` |
+| `⚠claudette` | git could not authenticate to the remote — staleness can no longer be observed. Why, in git's words: the `git upstream staleness` row of `/claudette doctor` | fix what git said, check with `git -C <repo> ls-remote origin`, then `/claudette update` |
 | *(nothing)* | both clean and current | — |
 
 - **`my` is always first**, whatever fired: a segment whose items move around
