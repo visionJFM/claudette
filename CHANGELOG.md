@@ -7,6 +7,10 @@ Each published version of claudette, newest first. The numbers follow
 - the second when a feature, a verb or a dot-command is added;
 - the third for fixes and wording.
 
+## [1.2.1] - 2026-11-17
+
+- The README shows a redrawn logo, at twice the size.
+
 ## [1.2.0] - 2026-11-17
 
 - A reinstall replaces the files in place instead of moving the folder, so a program working

@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/logo.png" alt="claudette logo" width="56" height="56"></p>
+<p align="center"><img src="docs/logo.png" alt="claudette logo" width="112" height="112"></p>
 
 <h1 align="center">/claudette</h1>
 
