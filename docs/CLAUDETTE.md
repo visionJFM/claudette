@@ -38,7 +38,7 @@ is a claudette feature — when something has no other explanation, it is probab
 | What runs on THIS machine; switch a feature on/off; tune a parameter (tones, volumes, statusline segments, owner token) | `/claudette prefs` |
 | Install or update claudette; decide about new features | `/claudette update` |
 | Which version runs here, what a version changed | `version` in `.claude-plugin/plugin.json`; `CHANGELOG.md` |
-| An update that cannot update claudette itself (repo moved, history rewritten, an edited file in the way) | reinstall: `README.md`, "Install instructions for agents" (`scripts/move_into_place.py` keeps answers and logs) |
+| An update that cannot update claudette itself (repo moved, history rewritten, an edited file in the way) | reinstall: `README.md`, "Detailed install instructions for agents" (`scripts/move_into_place.py` keeps answers and logs) |
 | Something claudette-managed not working | `/claudette doctor` |
 | Push the personal `~/.claude` repo (`my`); undo/disable/uninstall | `/claudette push` (needs `my_root_repo_sync`); `CLAUDETTE_UNDO.md` |
 | **Author a skill** — any skill, not just claudette's: where it goes, naming (owner prefix), gitignore hygiene, per-machine subset | `CLAUDETTE_SKILLS.md` |

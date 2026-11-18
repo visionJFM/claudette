@@ -10,11 +10,13 @@ Built with safety in mind: every feature is off until you say yes, and the insta
 
 ## Install
 
-**For humans.** Open Claude Code in your terminal (tested on Windows and macOS) and paste this prompt:
+### One-step install instructions for humans
+
+Open Claude Code in your terminal (tested on Windows and macOS) and paste this prompt:
 
 ```text
 Install claudette for me from https://github.com/visionJFM/claudette.
-Follow the "Install instructions for agents" section of its README.
+Follow the "Detailed install instructions for agents" section of its README.
 Before anything is activated, audit its security and show me what you found.
 Then ask me before each change to my Claude Code setup.
 ```
@@ -22,44 +24,64 @@ Then ask me before each change to my Claude Code setup.
 Your agent checks claudette, tells you what it found, and asks before each change. You need
 Git and Python 3.9 or newer; the agent checks them for you.
 
-If `/claudette update` ever fails to update claudette itself (its repository moved, or its
+If a later `/claudette update` fails to update claudette itself (its repository moved, or its
 history was rewritten), paste the same prompt again: the reinstall keeps your answers and logs.
 
-**For agents.** Read [Install instructions for agents](#install-instructions-for-agents), at
+### For agents
+
+Read [Detailed install instructions for agents](#detailed-install-instructions-for-agents), at
 the end of this page.
 
 ## What you get
 
-- 📊 **Your limits, always in sight.** The status line shows your context and your 5-hour and
-  weekly limits. Colors change before you hit a limit, not after.
-- 💬 **Faster exchanges with Claude.** Every reply has the same shape: what Claude understood,
-  the answer in numbered points, then what it needs from you. You see at once whether to wait,
-  read or answer. You point at a part by its number, and `go` runs the recommendation.
-- 🌙 **Close a session without losing what it knew.** `/claudette:done` (also run by `auto_done` in
-  an idle session) finds what would be lost and offers to save it:
-  - decisions that live only in the conversation
-  - uncommitted or unpushed work
-  - memory and scratch files
-- 🔔 **No need to watch the window.**
-  - A tone can play when a turn ends or a permission prompt waits.
-  - A voice can read out which session needs you, by the name you gave it.
-- ⚡ **Dot-commands, answered for free.** Type `.` to list them. A hook answers at once, with
-  no tokens spent:
-  - `.proj` lists every folder you ran Claude in, and opens a new session there.
-  - `.sess` finds a session, recent or by keyword, and reopens it. After a reboot,
-    `.sess !resume` reopens the ones left open.
-  - `.hist` shows what you typed in this session.
-  - `.close` marks the session as finished and closes its terminal window.
-  - `.status` shows your usage.
-- 🛑 **No crash into the usage limit.** When your usage runs ahead of the clock, heavy tools (web,
-  agents, workflows) pause. The session slows down instead of stopping mid-task.
-- 🧳 **Your setup on every machine.** With
-  `my_root_repo_sync` on, `/claudette update|push|sync` (pull, push, or both) synchronizes
-  your `~/.claude` repo across machines:
-  - CLAUDE.md
-  - personal skills
-  - notes and ideas
-  - anything else you commit there
+### 📊 Your limits, always in sight
+
+- The status line shows your context and your 5-hour and weekly limits.
+- Colors change before you hit a limit, not after. \
+  ![The claudette status line: context, 5-hour and weekly limits](docs/statusline.png)
+
+### 💬 Faster exchanges with Claude
+
+- Every reply has the same shape: numbered turns, what Claude understood, the answer in
+  numbered points, then what it needs from you.
+- You see at once whether to wait, read or answer.
+- You point at a part by its number, and `go` runs the recommendation. \
+  ![A reply in the claudette turn style: preview, numbered response, then what waits on you](docs/turnstyle.png)
+
+### 🌙 Close a session without losing what it knew
+
+- `/claudette:done` finds what would be lost before closing a session and offers to save it
+  (also run by `auto_done` in an idle session). \
+  ![A /claudette:done report: what shipped, what waits on you, and what is not saved yet](docs/done.png)
+
+### ⚡ Dot-commands, answered for free
+
+- Type `.` to list them. A hook answers at once, with no tokens spent. \
+  ![The dot-commands list, answered by a hook without spending tokens](docs/dotcommands.png)
+
+### 🛑 No crash into the usage limit
+
+- Claudette is aware of usage limits and can throttle heavy work instead of stopping
+  mid-task. \
+  ![The usage chart: the 7-day window consumed against the throttle limit, per machine](docs/usagechart.png)
+
+### 🔔 No need to watch the window
+
+- A tone can play when a turn ends or a permission prompt waits.
+- A voice can read out which session needs you, by the name you gave it. \
+  ![The idle prompt spoken aloud: idle prompt, legacy code refactor](docs/idleprompt.png)
+
+### 🧳 Your setup on every machine
+
+- With `my_root_repo_sync` on, `/claudette update|push|sync` (pull, push, or both)
+  synchronizes your `~/.claude` repo across machines. \
+  ![The ~/.claude folder: what your repo syncs, where claudette sits, what stays on each machine](docs/folders.png)
+
+### 🧩 Many other built-in features
+
+- CLAUDE.md instructions, and more.
+- `/claudette prefs` lists them all, and each one runs only once you say yes. \
+  ![The /claudette prefs list: the CLAUDE.md rules, each with its state](docs/prefs.png)
 
 ## You decide what runs
 
@@ -87,7 +109,7 @@ What it touches on your machine, and what it sends where: [SECURITY.md](SECURITY
 
 No third-party package is required: everything runs on Python's standard library.
 
-## Install instructions for agents
+## Detailed install instructions for agents
 
 Claudette was designed with security in mind. Nothing runs before the user's yes, everything
 it writes can be undone, and `SECURITY.md` lists what it touches. We still recommend that an

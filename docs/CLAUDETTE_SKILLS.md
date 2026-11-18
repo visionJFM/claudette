@@ -23,7 +23,7 @@ phrase saying what it does. Examples below use the placeholder owner `vader`.
 - `claudette-*` — generic, useful to any user, no personal content; ships in the claudette repo.
   Subject may be omitted: `claudette:throttle`.
 - `<owner>-*` — everything else. Owner token = `prefs.local.json` → `owner` (short, lowercase,
-  no spaces or dashes; initials work).
+  no spaces or dashes; initials work; `my` until the user sets one).
 - **Prefix = who publishes it, not what it is about.** Your personal expenses skill for the Empire
   is `vader-empire-expenses` — yours, about them. `empire-expenses` is the same subject published
   *by* the Empire for every employee, and waits on an Empire-shared repo to live in. Org-published

@@ -7,6 +7,12 @@ Each published version of claudette, newest first. The numbers follow
 - the second when a feature, a verb or a dot-command is added;
 - the third for fixes and wording.
 
+## [1.2.2] - 2026-11-18
+
+- The README shows each feature under its own heading, with a screenshot.
+- Skills you write are named with the owner prefix `my` until you set your own (it was the
+  placeholder `username`).
+
 ## [1.2.1] - 2026-11-17
 
 - The README shows a redrawn logo, at twice the size.

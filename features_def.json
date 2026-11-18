@@ -57,7 +57,7 @@
     "machinery": "claudette's own scripted behaviors with no config artifact"
   },
   "params": {
-    "owner": "username",
+    "owner": "my",
     "python": "",
     "audio_device": "",
     "audio_lead_ms": 500,
