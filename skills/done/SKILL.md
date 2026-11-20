@@ -229,9 +229,13 @@ the skill talking to itself in front of the user.
 
 ```bash
 bash "$HOME/.claude/skills/claudette/scripts/run.sh" done_probe.py \
-    --repo <repo_root> [--repo <another repo root you touched>]... \
-    --session <THIS session's id> --pretty
+    --repo <repo_root> [--repo <another repo root you touched>]... --pretty
 ```
+
+**The probe takes this session's id from the shell** (`CLAUDE_CODE_SESSION_ID`), so leave
+`--session` out rather than typing an id: a mistyped one points the scratchpad and status-line
+sections at no session. When the output's `session_id` is null, run it once more with
+`--session <the name of the folder that holds your scratchpad>`.
 
 **Repeat `--repo` for every repo root this session touched — one call, not one per repo.**
 The first is primary: it keeps the `repo` / `upstream_check` keys and sets `project_key`.

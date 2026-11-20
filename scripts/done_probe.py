@@ -33,6 +33,9 @@ CLI:
 `--repo` REPEATS - pass every repo root the session touched in ONE call. The first
 is primary (keeps the `repo`/`upstream_check` keys and sets `project_key`); the rest
 appear under `extra_repos`, which is absent when only one repo is given.
+`--session` defaults to CLAUDE_CODE_SESSION_ID, which Claude Code sets in the shells a
+session starts. With neither, `session_id` is null and the scratchpad section says what
+it could not check.
 Prints one JSON object. Every section is independently fallible: a section that
 cannot be read reports {"error": "..."} rather than failing the whole probe, so
 a missing memory dir never costs the agent its git picture.
@@ -387,6 +390,7 @@ def probe_memory(key, cap):
 # ------------------------------------------------------------------- scratchpad
 
 HASHED_ROOT = re.compile(r"^[0-9a-f]{16}$")
+SESSION_ENV = "CLAUDE_CODE_SESSION_ID"
 
 
 def scratch_roots(key, session):
@@ -428,7 +432,8 @@ def scratch_roots(key, session):
         unknown = ("this machine keeps session temp folders under <temp>/claude/<16 hex "
                    "digits>/, and %s; other sessions' leftovers were NOT checked"
                    % ("no folder there is named after session %s" % session if session
-                      else "no --session was given to find this project's folder"))
+                      else "no session id (--session or %s) was given to find this "
+                           "project's folder" % SESSION_ENV))
     return roots, unknown
 
 
@@ -635,6 +640,12 @@ def probe_usage_chart():
             "verb": "/claudette:chart"}
 
 
+def resolve_session(arg):
+    """This session's id: `--session` when given, so a caller holding the hook's id (or
+    probing another session) is obeyed; else SESSION_ENV; else None."""
+    return arg or os.environ.get(SESSION_ENV) or None
+
+
 def main(argv):
     repos = []
     session, pretty, no_names, cap = None, False, False, MEMORY_CAP
@@ -664,6 +675,7 @@ def main(argv):
     # to whichever repo was being asked about.
     if not repos:
         repos = [os.getcwd()]
+    session = resolve_session(session)
     repo, key = repos[0], project_key(repos[0])
     result = {
         "probed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),

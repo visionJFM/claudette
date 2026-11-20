@@ -1,7 +1,7 @@
 {
   "name": "claudette",
   "description": "Opt-in Claude Code features: status line with usage and rate limits, audio cues, zero-token dot-commands, a structured reply style, token-budget throttle, idle done report, and a registry that applies only what each machine said yes to.",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "author": {
     "name": "visionJFM"
   },

@@ -7,6 +7,12 @@ Each published version of claudette, newest first. The numbers follow
 - the second when a feature, a verb or a dot-command is added;
 - the third for fixes and wording.
 
+## [1.2.6] - 2026-11-20
+
+- `/claudette:done`, typed or run by the idle report, finds the temporary folders where other
+  sessions left files: it now gets the session's id from Claude Code rather than from the
+  model typing it, which could get it wrong and leave that check blind.
+
 ## [1.2.5] - 2026-11-18
 
 - A pull that cannot authenticate quotes git's own error, in the report and in the update
